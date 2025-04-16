@@ -1,15 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class PlayerSection extends StatelessWidget {
+class PlayerSection extends StatefulWidget {
   const PlayerSection({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final Color brightGreen = const Color(0xFF00FF00);
-    final Color darkGreen  = brightGreen.withOpacity(0.4);
-    final Color bgColor    = const Color(0xFF151515);
+  _PlayerSectionState createState() => _PlayerSectionState();
+}
 
+class _PlayerSectionState extends State<PlayerSection> {
+  final Color brightGreen = const Color(0xFF00FF00);
+  late final Color darkGreen  = brightGreen.withOpacity(0.4);
+  final Color bgColor    = const Color(0xFF151515);
+
+  double _volume = 0.75;
+  bool _muted   = false;
+
+  String get _speakerAsset {
+    if (_muted) return 'assets/icons/ph--speaker-x-fill.svg';
+    if (_volume == 0) return 'assets/icons/ph--speaker-slash-fill.svg';
+    if (_volume <= 0.25) return 'assets/icons/ph--speaker-none-fill.svg';
+    if (_volume <= 0.5) return 'assets/icons/ph--speaker-low-fill.svg';
+    // ≥ 0.75
+    return 'assets/icons/ph--speaker-high-fill.svg';
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _muted = !_muted;
+    });
+  }
+
+  void _onVolumeChanged(double val) {
+    setState(() {
+      _volume = val;
+      if (val > 0) _muted = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
@@ -128,6 +158,33 @@ class PlayerSection extends StatelessWidget {
                   height: 24,
                 ),
                 onPressed: () {},
+              ),
+            ],
+          ),
+
+          const SizedBox(width: 24),
+
+          // Volume control (icon right next to slider)
+          Row(
+            children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                icon: SvgPicture.asset(
+                  _speakerAsset,
+                  color: brightGreen,
+                  width: 24,
+                  height: 24,
+                ),
+                onPressed: _toggleMute,
+              ),
+              SizedBox(
+                width: 100,
+                child: Slider(
+                  activeColor: brightGreen,
+                  inactiveColor: darkGreen,
+                  value: _muted ? 0 : _volume,
+                  onChanged: _onVolumeChanged,
+                ),
               ),
             ],
           ),
