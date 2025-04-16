@@ -18,7 +18,6 @@ class RustBridge {
     }
   }();
 
-  // Existing function(s)…
   static final PlayAudioFile _playAudioFile = _dylib
       .lookup<NativeFunction<PlayAudioFileFunc>>('play_audio_file_ffi')
       .asFunction();

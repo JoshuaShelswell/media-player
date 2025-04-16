@@ -8,6 +8,11 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+anyhow = "1.0"
+log = "0.4"
+env_logger = "0.11.8"
+libc = "0.2"
+walkdir = "2.3.3"
 ffmpeg-next = "7.1"
 ffmpeg-sys-next = "7.1.2"
 cpal = "0.15.2"

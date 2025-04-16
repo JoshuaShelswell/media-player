@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'screens/media_player_screen.dart';
+import 'services/playlist_repository.dart';
 
 void main() {
-  runApp(MyMediaPlayerApp());
+  runApp(const MyMediaPlayerApp());
 }
 
 class MyMediaPlayerApp extends StatelessWidget {
+  const MyMediaPlayerApp({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Media Player',
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: Colors.black,
-        primaryColor: Colors.green,
-        // Update text theme to use Flutter's new naming
-        textTheme: ThemeData.dark().textTheme.copyWith(
-          bodyMedium: TextStyle(color: Color(0xFF00FF00)), // neon green
-          headlineMedium: TextStyle(color: Color(0xFF00FF00)),
+    return ChangeNotifierProvider<PlaylistRepository>(
+      create: (_) => PlaylistRepository(),
+      child: MaterialApp(
+        title: 'Media Player',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData.dark().copyWith(
+          scaffoldBackgroundColor: Colors.black,
         ),
+        home: const MediaPlayerScreen(),
       ),
-      home: MediaPlayerScreen(),
     );
   }
 }
