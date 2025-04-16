@@ -756,22 +756,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "media-player-core"
-version = "0.1.0"
-dependencies = [
- "cpal",
- "ffmpeg-next",
- "ffmpeg-sys-next",
- "futures",
- "once_cell",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "tungstenite 0.17.3",
-]
-
-[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1085,6 +1069,22 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
+
+[[package]]
+name = "rust_engine"
+version = "0.1.0"
+dependencies = [
+ "cpal",
+ "ffmpeg-next",
+ "ffmpeg-sys-next",
+ "futures",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tungstenite 0.17.3",
+]
 
 [[package]]
 name = "rustc-demangle"
