@@ -7,6 +7,16 @@ class MediaPlayerScreen extends StatefulWidget {
 }
 
 class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
+  // Define the neon green we use for all borders and text.
+  final Color neonGreen = const Color(0xFF00FF00);
+  
+  // Off-black background for most areas
+  final Color offBlack = const Color(0xFF202020);
+  
+  // A slightly lighter gray for the library pane background.
+  final Color libraryGray = const Color(0xFF2A2A2A);
+  
+  // Example data:
   final List<String> playlists = ['Playlist 1', 'Playlist 2', 'Playlist 3'];
   final List<String> nowPlaying = [
     'Song 1',
@@ -15,29 +25,36 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     'Song 4',
     'Song 5',
   ];
-  final Color neonGreen = const Color(0xFF00FF00);
-  double currentSliderValue = 30.0;
+
+  double trackProgress = 30.0; // current track progress (0-100)
+  double volumeLevel = 70.0;    // volume (0-100)
+  bool isShuffle = false;       // shuffle state
+  bool isPlaying = true;        // playing vs paused
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Remove the default AppBar to use a custom top section:
+      backgroundColor: Colors.transparent, // so our custom container is seen
       body: Container(
-        color: Colors.black,
+        // Outer border around the entire app
+        decoration: BoxDecoration(
+          color: offBlack,
+          border: Border.all(color: neonGreen, width: 2),
+        ),
         child: Column(
           children: [
-            // -------- CUSTOM TOP BAR --------
+            // ---------- TOP CONTROL BAR ----------
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.black,
+                color: offBlack,
                 border: Border(
                   bottom: BorderSide(color: neonGreen, width: 2),
                 ),
               ),
               child: Row(
                 children: [
-                  // Left Section: Title and Track Info
+                  // Left: Title and current track info
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -57,67 +74,109 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                     ],
                   ),
                   Spacer(),
-                  // Center Section: Slider and Time
-                  Column(
+                  // Middle: Progress bar with start and end time on either side
+                  Expanded(
+                    flex: 3,
+                    child: Row(
+                      children: [
+                        Text(
+                          '00:00',
+                          style: TextStyle(color: neonGreen, fontSize: 12),
+                        ),
+                        Expanded(
+                          child: Slider(
+                            value: trackProgress,
+                            min: 0,
+                            max: 100,
+                            onChanged: (val) {
+                              setState(() {
+                                trackProgress = val;
+                              });
+                            },
+                            activeColor: neonGreen,
+                            inactiveColor: neonGreen.withOpacity(0.3),
+                          ),
+                        ),
+                        Text(
+                          '06:01',
+                          style: TextStyle(color: neonGreen, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Spacer(),
+                  // Right: Playback controls and volume
+                  Row(
                     children: [
+                      // Skip Back
+                      IconButton(
+                        icon: _buildSvgIcon('assets/icons/ph--skip-back-fill.svg'),
+                        onPressed: () {},
+                      ),
+                      // Rewind
+                      IconButton(
+                        icon: _buildSvgIcon('assets/icons/ph--rewind-fill.svg'),
+                        onPressed: () {},
+                      ),
+                      // Play/Pause toggle
+                      IconButton(
+                        icon: isPlaying
+                            ? _buildSvgIcon('assets/icons/ph--pause-circle-bold.svg')
+                            : _buildSvgIcon('assets/icons/ph--play-circle-bold.svg'),
+                        onPressed: () {
+                          setState(() {
+                            isPlaying = !isPlaying;
+                          });
+                        },
+                      ),
+                      // Fast Forward
+                      IconButton(
+                        icon: _buildSvgIcon('assets/icons/ph--fast-forward-fill.svg'),
+                        onPressed: () {},
+                      ),
+                      // Skip Forward
+                      IconButton(
+                        icon: _buildSvgIcon('assets/icons/ph--skip-forward-fill.svg'),
+                        onPressed: () {},
+                      ),
+                      // Shuffle toggle
+                      IconButton(
+                        icon: isShuffle
+                            ? _buildSvgIcon('assets/icons/ph--shuffle-bold.svg')
+                            : _buildSvgIcon('assets/icons/ph--shuffle-off-bold.svg'),
+                        onPressed: () {
+                          setState(() {
+                            isShuffle = !isShuffle;
+                          });
+                        },
+                      ),
+                      SizedBox(width: 16),
+                      // Volume Icon and Volume Slider
+                      IconButton(
+                        icon: _buildSvgIcon('assets/icons/ph--speaker-high-fill.svg'),
+                        onPressed: () {},
+                      ),
                       SizedBox(
-                        width: 250,
+                        width: 100,
                         child: Slider(
-                          value: currentSliderValue,
+                          value: volumeLevel,
                           min: 0,
                           max: 100,
                           onChanged: (val) {
                             setState(() {
-                              currentSliderValue = val;
+                              volumeLevel = val;
                             });
                           },
                           activeColor: neonGreen,
                           inactiveColor: neonGreen.withOpacity(0.3),
                         ),
                       ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '00:${currentSliderValue.toStringAsFixed(0)}',
-                            style: TextStyle(color: neonGreen, fontSize: 12),
-                          ),
-                          SizedBox(width: 80),
-                          Text(
-                            '06:01',
-                            style: TextStyle(color: neonGreen, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Spacer(),
-                  // Right Section: Playback Controls with SVG icons
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: _buildSvgIcon('assets/icons/ph--skip-back-fill.svg'),
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: _buildSvgIcon('assets/icons/ph--pause-circle-bold.svg'),
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: _buildSvgIcon('assets/icons/ph--play-circle-bold.svg'),
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: _buildSvgIcon('assets/icons/ph--skip-forward-fill.svg'),
-                        onPressed: () {},
-                      ),
                     ],
                   ),
                 ],
               ),
             ),
-
-            // -------- MAIN CONTENT: PLAYLISTS, NOW PLAYING, LIBRARY --------
+            // ---------- MAIN CONTENT (Three Panels) ----------
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -126,14 +185,14 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                   Container(
                     width: 250,
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: offBlack,
                       border: Border(
                         right: BorderSide(color: neonGreen, width: 2),
                       ),
                     ),
                     child: Stack(
                       children: [
-                        // Playlists List Section
+                        // Playlists list
                         Positioned.fill(
                           child: Padding(
                             padding: const EdgeInsets.all(10),
@@ -157,7 +216,10 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                                         child: Text(
                                           playlists[index],
-                                          style: TextStyle(color: neonGreen, fontSize: 14),
+                                          style: TextStyle(
+                                            color: neonGreen,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       );
                                     },
@@ -167,21 +229,19 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                             ),
                           ),
                         ),
-                        // Add Playlist Button Pinned to Bottom-Left
+                        // "Add Playlist" button at bottom left
                         Positioned(
                           bottom: 10,
                           left: 10,
                           child: InkWell(
                             onTap: () {
-                              // Trigger "add playlist" functionality.
+                              // Add Playlist logic here.
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: Colors.black,
+                                color: offBlack,
                                 border: Border.all(color: neonGreen, width: 2),
-                                // If you want rounded corners, change borderRadius:
-                                borderRadius: BorderRadius.circular(0),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -209,12 +269,11 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                       ],
                     ),
                   ),
-
                   // Middle Pane: Now Playing
                   Container(
                     width: 350,
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: offBlack,
                       border: Border(
                         right: BorderSide(color: neonGreen, width: 2),
                       ),
@@ -244,20 +303,23 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                                     Flexible(
                                       child: Text(
                                         nowPlaying[index],
-                                        style: TextStyle(color: neonGreen, fontSize: 14),
+                                        style: TextStyle(
+                                          color: neonGreen,
+                                          fontSize: 14,
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     GestureDetector(
                                       onTap: () {
-                                        // Remove track from nowPlaying list.
+                                        // Remove track action.
                                       },
                                       child: Icon(
                                         Icons.close,
                                         color: neonGreen,
                                         size: 20,
                                       ),
-                                    )
+                                    ),
                                   ],
                                 ),
                               );
@@ -267,11 +329,10 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                       ],
                     ),
                   ),
-
-                  // Right Pane: Library
+                  // Right Pane: Library (with a gray background)
                   Expanded(
                     child: Container(
-                      color: Colors.black,
+                      color: libraryGray,
                       padding: const EdgeInsets.all(10),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -287,7 +348,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                           SizedBox(height: 8),
                           Container(
                             decoration: BoxDecoration(
-                              color: Colors.black,
+                              color: libraryGray,
                               border: Border.all(color: neonGreen, width: 1),
                             ),
                             child: TextField(
@@ -323,7 +384,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     );
   }
 
-  /// Helper method to load an SVG icon with an optional color override.
+  /// Helper to load an SVG icon from assets.
   Widget _buildSvgIcon(String assetPath,
       {Color? iconColor, double width = 24, double height = 24}) {
     return SvgPicture.asset(
