@@ -1,16 +1,16 @@
-# media-player-project/flutter-media-player/pubspec.yaml
 name: flutter_media_player
 description: A Flutter-based media player for Windows powered by a Rust core engine.
 publish_to: 'none'
 version: 0.1.0+1
 
 environment:
-  sdk: ">=2.12.0 <3.0.0"
+  sdk: ">=2.18.0 <3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  ffi: ^2.0.1
+  ffi: ^2.1.4
+  flutter_svg: ^1.1.6
 
 dev_dependencies:
   flutter_test:
@@ -18,3 +18,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/

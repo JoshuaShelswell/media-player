@@ -1,20 +1,25 @@
-// media-player-project/flutter-media-player/lib/main.dart
 import 'package:flutter/material.dart';
-import 'screens/player_screen.dart';
+import 'screens/media_player_screen.dart';
 
 void main() {
-  runApp(FlutterMediaPlayerApp());
+  runApp(MyMediaPlayerApp());
 }
 
-class FlutterMediaPlayerApp extends StatelessWidget {
+class MyMediaPlayerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Media Player',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
+      title: 'Media Player',
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: Colors.black,
+        primaryColor: Colors.green,
+        // Update text theme to use Flutter's new naming
+        textTheme: ThemeData.dark().textTheme.copyWith(
+          bodyMedium: TextStyle(color: Color(0xFF00FF00)), // neon green
+          headlineMedium: TextStyle(color: Color(0xFF00FF00)),
+        ),
       ),
-      home: PlayerScreen(),
+      home: MediaPlayerScreen(),
     );
   }
 }
