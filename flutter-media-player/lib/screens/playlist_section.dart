@@ -12,9 +12,10 @@ class PlaylistSection extends StatefulWidget {
 
 class _PlaylistSectionState extends State<PlaylistSection> {
   final TextEditingController _playlistController = TextEditingController();
-  final Color brightGreen = const Color(0xFF00FF00);
+
+  static const Color brightGreen = Color(0xFF00FF00);
   late final Color darkGreen = brightGreen.withOpacity(0.4);
-  final Color sectionBg = const Color(0xFF151515);
+  static const Color sectionBg = Color(0xFF151515);
 
   @override
   void dispose() {
@@ -28,59 +29,70 @@ class _PlaylistSectionState extends State<PlaylistSection> {
       color: sectionBg,
       child: Column(
         children: [
-          // header with title + add button
+          // Header
           Padding(
             padding: const EdgeInsets.all(10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Playlists',
-                  style: TextStyle(
-                    color: brightGreen,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  children: [
+                    SvgPicture.asset(
+                      'assets/icons/ph--files-fill.svg',
+                      width: 20,
+                      height: 20,
+                      color: brightGreen,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Playlists',
+                      style: TextStyle(
+                        color: brightGreen,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
                 IconButton(
-                  icon: SvgPicture.asset(
-                    'assets/icons/ph--folder-plus-fill.svg',
-                    width: 20,
-                    height: 20,
-                    color: brightGreen,
-                  ),
+                  icon: const Icon(Icons.add),
+                  color: brightGreen,
                   onPressed: () async {
-                    final name = await showDialog<String>(
+                    final result = await showDialog<String>(
                       context: context,
                       builder: (_) => AlertDialog(
                         backgroundColor: Colors.black,
-                        title: Text('Add Playlist', style: TextStyle(color: brightGreen)),
+                        title: const Text('Add Playlist',
+                            style: TextStyle(color: brightGreen)),
                         content: TextField(
                           controller: _playlistController,
-                          style: TextStyle(color: brightGreen),
+                          style: const TextStyle(color: brightGreen),
                           decoration: InputDecoration(
                             hintText: 'Playlist name',
-                            hintStyle: TextStyle(color: brightGreen.withOpacity(0.7)),
+                            hintStyle:
+                                TextStyle(color: brightGreen.withOpacity(0.7)),
                           ),
                         ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
-                            child: Text('Cancel', style: TextStyle(color: brightGreen)),
+                            child: const Text('Cancel',
+                                style: TextStyle(color: brightGreen)),
                           ),
                           TextButton(
                             onPressed: () {
-                              final trimmed = _playlistController.text.trim();
-                              Navigator.pop(context, trimmed);
+                              final name = _playlistController.text.trim();
+                              Navigator.pop(context, name);
                             },
-                            child: Text('Add', style: TextStyle(color: brightGreen)),
+                            child: const Text('Add',
+                                style: TextStyle(color: brightGreen)),
                           ),
                         ],
                       ),
                     );
-                    if (name != null && name.isNotEmpty) {
+                    if (result != null && result.isNotEmpty) {
                       Provider.of<PlaylistRepository>(context, listen: false)
-                          .addPlaylist(name);
+                          .addPlaylist(result);
                       _playlistController.clear();
                     }
                   },
@@ -89,16 +101,20 @@ class _PlaylistSectionState extends State<PlaylistSection> {
             ),
           ),
 
-          // playlist list
+          // Playlist list
           Expanded(
             child: Consumer<PlaylistRepository>(
-              builder: (ctx, repo, _) {
+              builder: (context, repo, _) {
                 return ListView.builder(
                   itemCount: repo.playlists.length,
-                  itemBuilder: (_, i) {
-                    final pl = repo.playlists[i];
-                    final selected = repo.selectedPlaylistId == pl.id;
-                    return _PlaylistTile(playlist: pl, selected: selected);
+                  itemBuilder: (context, index) {
+                    final playlist = repo.playlists[index];
+                    final isSelected =
+                        repo.selectedPlaylistId == playlist.id;
+                    return _PlaylistTile(
+                      playlist: playlist,
+                      selected: isSelected,
+                    );
                   },
                 );
               },
@@ -125,30 +141,38 @@ class _PlaylistTile extends StatefulWidget {
 
 class __PlaylistTileState extends State<_PlaylistTile> {
   bool _hovering = false;
-  final Color brightGreen = const Color(0xFF00FF00);
+  static const Color brightGreen = Color(0xFF00FF00);
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
-      child: ListTile(
-        tileColor: widget.selected
-            ? brightGreen.withOpacity(0.2)
-            : Colors.transparent,
-        title: Text(
-          widget.playlist.name,
-          style: TextStyle(color: brightGreen),
-        ),
-        trailing: _hovering
-            ? GestureDetector(
-                onTap: () => Provider.of<PlaylistRepository>(context, listen: false)
-                    .deletePlaylist(widget.playlist.id),
-                child: Icon(Icons.close, color: Colors.red, size: 18),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: widget.selected
+            ? BoxDecoration(
+                color: brightGreen.withOpacity(0.15),
               )
             : null,
-        onTap: () => Provider.of<PlaylistRepository>(context, listen: false)
-            .selectPlaylist(widget.playlist.id),
+        child: ListTile(
+          title: Text(
+            widget.playlist.name,
+            style: const TextStyle(color: brightGreen),
+          ),
+          trailing: _hovering
+              ? InkWell(
+                  onTap: () => Provider.of<PlaylistRepository>(context,
+                          listen: false)
+                      .deletePlaylist(widget.playlist.id),
+                  child: const Icon(Icons.close,
+                      color: Colors.red, size: 18),
+                )
+              : null,
+          onTap: () => Provider.of<PlaylistRepository>(context,
+                  listen: false)
+              .selectPlaylist(widget.playlist.id),
+        ),
       ),
     );
   }

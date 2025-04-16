@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
 import '../services/playlist_repository.dart';
@@ -12,7 +12,7 @@ class PlayingSection extends StatefulWidget {
 }
 
 class _PlayingSectionState extends State<PlayingSection> {
-  List<String> _dropped = [];
+  List<String> droppedFiles = [];
 
   @override
   Widget build(BuildContext context) {
@@ -21,26 +21,25 @@ class _PlayingSectionState extends State<PlayingSection> {
     final Color sectionBg = const Color(0xFF151515);
 
     return Consumer<PlaylistRepository>(
-      builder: (ctx, repo, _) {
-        final pl = repo.selectedPlaylistId == null
-            ? null
-            : repo.playlists.firstWhere(
+      builder: (context, repo, _) {
+        final selected = repo.selectedPlaylistId != null
+            ? repo.playlists.firstWhere(
                 (p) => p.id == repo.selectedPlaylistId,
                 orElse: () => Playlist(id: '', name: ''),
-              );
-        final songs = (pl != null && pl.id.isNotEmpty)
-            ? pl.songPaths
-            : _dropped;
+              )
+            : null;
+        final songs = selected?.songPaths ?? [];
 
         return DropTarget(
           onDragDone: (d) {
             final paths = d.files.map((f) => f.path).toList();
             setState(() {
-              if (pl != null && pl.id.isNotEmpty) {
-                pl.songPaths.addAll(paths);
+              if (selected != null && selected.id.isNotEmpty) {
+                selected.songPaths.addAll(paths);
+                repo.notifyListeners();
                 repo.savePlaylists();
               } else {
-                _dropped.addAll(paths);
+                droppedFiles.addAll(paths);
               }
             });
           },
@@ -48,42 +47,65 @@ class _PlayingSectionState extends State<PlayingSection> {
             width: double.infinity,
             decoration: BoxDecoration(
               color: sectionBg,
-              border: Border.symmetric(
-                vertical: BorderSide(color: darkGreen, width: 2),
+              border: Border(
+                left: BorderSide(color: darkGreen, width: 2),
+                right: BorderSide(color: darkGreen, width: 2),
               ),
             ),
-            padding: const EdgeInsets.all(10),
+            // ↑ bump top padding from 10 to 20 to align header vertically
+            padding: const EdgeInsets.fromLTRB(10, 20, 10, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Now Playing',
-                  style: TextStyle(
-                    color: brightGreen,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SvgPicture.asset(
+                      'assets/icons/ph--music-notes-fill.svg',
+                      width: 20,
+                      height: 20,
+                      color: brightGreen,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Now Playing',
+                      style: TextStyle(
+                        color: brightGreen,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Expanded(
-                  child: songs.isEmpty
+                  child: (songs.isEmpty && droppedFiles.isEmpty)
                       ? Center(
                           child: Text(
-                            'Drop tracks here or select a playlist',
-                            style: TextStyle(color: brightGreen),
+                            'Select a playlist to view songs\nOr drag and drop tracks here',
+                            style: TextStyle(color: brightGreen, fontSize: 14),
                             textAlign: TextAlign.center,
                           ),
                         )
                       : ListView.builder(
-                          itemCount: songs.length,
-                          itemBuilder: (_, i) {
-                            final playing = i == 0;
+                          itemCount: songs.isNotEmpty
+                              ? songs.length
+                              : droppedFiles.length,
+                          itemBuilder: (ctx, i) {
+                            final track = songs.isNotEmpty
+                                ? songs[i]
+                                : droppedFiles[i];
+                            final isPlaying = i == 0;
                             return _SongTile(
-                              path: songs[i],
-                              playing: playing,
+                              track: track,
+                              playing: isPlaying,
                               onRemove: () {
                                 setState(() {
-                                  songs.removeAt(i);
+                                  if (songs.isNotEmpty) {
+                                    selected!.songPaths.removeAt(i);
+                                  } else {
+                                    droppedFiles.removeAt(i);
+                                  }
                                   repo.savePlaylists();
                                 });
                               },
@@ -101,12 +123,12 @@ class _PlayingSectionState extends State<PlayingSection> {
 }
 
 class _SongTile extends StatefulWidget {
-  final String path;
+  final String track;
   final bool playing;
   final VoidCallback onRemove;
   const _SongTile({
     Key? key,
-    required this.path,
+    required this.track,
     required this.playing,
     required this.onRemove,
   }) : super(key: key);
@@ -124,20 +146,20 @@ class __SongTileState extends State<_SongTile> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
       onExit: (_) => setState(() => _hover = false),
-      child: ListTile(
-        tileColor: widget.playing
-            ? brightGreen.withOpacity(0.2)
-            : Colors.transparent,
-        title: Text(
-          widget.path.split(Platform.pathSeparator).last,
-          style: TextStyle(color: brightGreen),
-        ),
-        trailing: _hover
-            ? IconButton(
-                icon: Icon(Icons.close, color: Colors.red, size: 18),
-                onPressed: widget.onRemove,
-              )
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        decoration: widget.playing
+            ? BoxDecoration(color: brightGreen.withOpacity(0.15))
             : null,
+        child: ListTile(
+          title: Text(widget.track, style: TextStyle(color: brightGreen)),
+          trailing: _hover
+              ? InkWell(
+                  onTap: widget.onRemove,
+                  child: Icon(Icons.close, color: Colors.red, size: 18),
+                )
+              : null,
+        ),
       ),
     );
   }

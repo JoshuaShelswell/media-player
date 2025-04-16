@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'playlist_section.dart';
-import 'player_section.dart';
 import 'playing_section.dart';
+import 'player_section.dart';
 import 'library_section.dart';
 
 class MediaPlayerScreen extends StatelessWidget {
@@ -9,34 +9,41 @@ class MediaPlayerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Outer container with an outer border.
+    // your neon green & dark green
+    const brightGreen = Color(0xFF00FF00);
+    final borderColor = brightGreen.withOpacity(0.4);
+
     return Scaffold(
       body: Container(
+        // outer black + green border
         decoration: BoxDecoration(
           color: Colors.black,
-          border: Border.all(color: Colors.green.withOpacity(0.4), width: 2),
+          border: Border.all(color: borderColor, width: 2),
         ),
         child: Column(
           children: [
-            // Top control area (player controls)
+            // top: player controls
             const PlayerSection(),
-            // Main content: playlists on the left, now playing in the middle, library on the right.
+
+            // main content row
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: const [
-                  // Left: PlaylistSection (fixed width)
+                  // left playlist
                   SizedBox(
                     width: 250,
                     child: PlaylistSection(),
                   ),
-                  // Middle: PlayingSection (fixed width)
+                  // center now playing
                   SizedBox(
                     width: 350,
                     child: PlayingSection(),
                   ),
-                  // Right: LibrarySection (fills remaining space)
-                  Expanded(child: LibrarySection()),
+                  // right library fills rest
+                  Expanded(
+                    child: LibrarySection(),
+                  ),
                 ],
               ),
             ),
