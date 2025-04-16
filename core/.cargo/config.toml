@@ -1,0 +1,6 @@
+[env]
+PKG_CONFIG_PATH = "C:/vcpkg/installed/x64-windows/lib/pkgconfig"
+FFMPEG_PKG_CONFIG_PATH = "C:/vcpkg/installed/x64-windows/lib/pkgconfig"
+FFMPEG_DIR = "C:/vcpkg/installed/x64-windows"
+FFMPEG_INCLUDE_DIR = "C:/vcpkg/installed/x64-windows/include"
+FFMPEG_LIB_DIR = "C:/vcpkg/installed/x64-windows/lib"

@@ -1,0 +1,14 @@
+C:\Users\Joshua\Documents\Github\media-player\target\release\deps\libclang_sys-d48e64390f602a7c.rmeta: C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\lib.rs C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\support.rs C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\link.rs C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/macros.rs C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/common.rs C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/dynamic.rs
+
+C:\Users\Joshua\Documents\Github\media-player\target\release\deps\libclang_sys-d48e64390f602a7c.rlib: C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\lib.rs C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\support.rs C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\link.rs C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/macros.rs C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/common.rs C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/dynamic.rs
+
+C:\Users\Joshua\Documents\Github\media-player\target\release\deps\clang_sys-d48e64390f602a7c.d: C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\lib.rs C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\support.rs C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\link.rs C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/macros.rs C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/common.rs C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/dynamic.rs
+
+C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\lib.rs:
+C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\support.rs:
+C:\Users\Joshua\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\clang-sys-1.8.1\src\link.rs:
+C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/macros.rs:
+C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/common.rs:
+C:\Users\Joshua\Documents\Github\media-player\target\release\build\clang-sys-2b94b04a32072c2b\out/dynamic.rs:
+
+# env-dep:OUT_DIR=C:\\Users\\Joshua\\Documents\\Github\\media-player\\target\\release\\build\\clang-sys-2b94b04a32072c2b\\out

@@ -1,54 +1,18 @@
-# Rust Media Player with FFmpeg
+# media_player_app
 
-A media player built in Rust using FFmpeg for audio decoding and hot-reloadable UI.
+A new Flutter project.
 
-## Setup Instructions for Windows
+## Getting Started
 
-1. **Install Rust**
-   - Download and install from [rustup.rs](https://rustup.rs/)
+This project is a starting point for a Flutter application.
 
-2. **Install Visual Studio Build Tools**
-   - Download from [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/)
-   - Under "Tools for Visual Studio", select "Build Tools for Visual Studio 2022" and choose "Desktop development with C++"
+A few resources to get you started if this is your first Flutter project:
 
-3. **Install FFmpeg Dependencies**
-   - Make sure vcpkg is properly installed
-   - Install FFmpeg libraries:
-     ```
-     cd C:\vcpkg
-     .\vcpkg install ffmpeg:x64-windows
-     ```
-   - Set environment variable:
-     ```
-     setx VCPKG_ROOT C:\vcpkg
-     ```
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-4. **Build and Run the Media Player**
-   - Navigate to the project directory.
-   - For development with hot reloading, run:
-     ```
-     cargo clean && cargo run --bin dev
-     ```
-   - For production build:
-     ```
-     cargo run --release --bin dev
-     ```
-     For distribution build:
-     ```
-     cargo build --release
-     ```
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
 
-## Supported Formats
-
-With FFmpeg integration, the player now supports a wide range of audio formats including:
-- MP3, WAV, FLAC, OGG, M4A, AAC, OPUS
-- WMA, APE, MKA, TTA, WV
-- MIDI, AU, AIFF
-- And many more formats supported by FFmpeg!
-
-## Features
-
-- Play, pause, and stop functionality
-- Automatic sample rate conversion
-- Multi-channel audio support
-- Hot-reloadable UI components
+cargo clean && cargo run --release -p dev

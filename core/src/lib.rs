@@ -1,19 +1,11 @@
-// core/src/lib.rs
-pub mod audio;
-pub mod player;
-pub mod playlist;
-pub mod library;
+// media-player/core/src/lib.rs
 
-// Re-export key types for convenience
-pub use player::state::{PlayerState, PlaybackStatus};
-pub use player::actions::PlayerAction;
-pub use player::Player;
-pub use playlist::{PlaylistAction, PlaylistState, Playlist, Track};
-pub use library::{LibraryAction, LibraryState};
+mod audio;
+mod playlist;
+mod library;
+mod player;
+mod network;
+mod ffi;
 
-#[derive(Debug, Clone)]
-pub enum Action {
-    Player(PlayerAction),
-    Playlist(PlaylistAction),
-    Library(LibraryAction),
-}
+// Publicly re-export the FFI functions for Flutter integration.
+pub use ffi::*;

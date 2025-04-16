@@ -1,0 +1,17 @@
+[package]
+name = "media-player"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+media-player-core = { path = "" }
+
+[[bin]]
+name = "media_player"
+path = "src/main.rs"
+
+[workspace]
+members = [
+    "core",
+    "dev"
+]

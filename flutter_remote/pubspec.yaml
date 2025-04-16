@@ -1,0 +1,15 @@
+name: media_player_app
+description: "Some description"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.17.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # etc...
+
+flutter:
+  uses-material-design: true
