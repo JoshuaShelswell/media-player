@@ -12,10 +12,8 @@ class PlaylistSection extends StatefulWidget {
 
 class _PlaylistSectionState extends State<PlaylistSection> {
   final TextEditingController _playlistController = TextEditingController();
-
   final Color brightGreen = const Color(0xFF00FF00);
   late final Color darkGreen = brightGreen.withOpacity(0.4);
-  // Use the same background as PlayerSection and PlayingSection.
   final Color sectionBg = const Color(0xFF151515);
 
   @override
@@ -27,16 +25,10 @@ class _PlaylistSectionState extends State<PlaylistSection> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: sectionBg,
-        // No right border here.
-        border: Border(
-          // You can add a left border if desired:
-          // left: BorderSide(color: darkGreen, width: 2),
-        ),
-      ),
+      color: sectionBg,
       child: Column(
         children: [
+          // header with title + add button
           Padding(
             padding: const EdgeInsets.all(10),
             child: Row(
@@ -58,39 +50,37 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                     color: brightGreen,
                   ),
                   onPressed: () async {
-                    final result = await showDialog<String>(
+                    final name = await showDialog<String>(
                       context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          backgroundColor: Colors.black,
-                          title: Text('Add Playlist', style: TextStyle(color: brightGreen)),
-                          content: TextField(
-                            controller: _playlistController,
-                            style: TextStyle(color: brightGreen),
-                            decoration: InputDecoration(
-                              hintText: 'Playlist name',
-                              hintStyle: TextStyle(color: brightGreen.withOpacity(0.7)),
-                            ),
+                      builder: (_) => AlertDialog(
+                        backgroundColor: Colors.black,
+                        title: Text('Add Playlist', style: TextStyle(color: brightGreen)),
+                        content: TextField(
+                          controller: _playlistController,
+                          style: TextStyle(color: brightGreen),
+                          decoration: InputDecoration(
+                            hintText: 'Playlist name',
+                            hintStyle: TextStyle(color: brightGreen.withOpacity(0.7)),
                           ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text('Cancel', style: TextStyle(color: brightGreen)),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                final name = _playlistController.text.trim();
-                                Navigator.pop(context, name);
-                              },
-                              child: Text('Add', style: TextStyle(color: brightGreen)),
-                            ),
-                          ],
-                        );
-                      },
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text('Cancel', style: TextStyle(color: brightGreen)),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              final trimmed = _playlistController.text.trim();
+                              Navigator.pop(context, trimmed);
+                            },
+                            child: Text('Add', style: TextStyle(color: brightGreen)),
+                          ),
+                        ],
+                      ),
                     );
-                    if (result != null && result.isNotEmpty) {
+                    if (name != null && name.isNotEmpty) {
                       Provider.of<PlaylistRepository>(context, listen: false)
-                          .addPlaylist(result);
+                          .addPlaylist(name);
                       _playlistController.clear();
                     }
                   },
@@ -98,15 +88,17 @@ class _PlaylistSectionState extends State<PlaylistSection> {
               ],
             ),
           ),
+
+          // playlist list
           Expanded(
             child: Consumer<PlaylistRepository>(
-              builder: (context, repo, child) {
+              builder: (ctx, repo, _) {
                 return ListView.builder(
                   itemCount: repo.playlists.length,
-                  itemBuilder: (context, index) {
-                    final playlist = repo.playlists[index];
-                    final isSelected = repo.selectedPlaylistId == playlist.id;
-                    return _PlaylistTile(playlist: playlist, selected: isSelected);
+                  itemBuilder: (_, i) {
+                    final pl = repo.playlists[i];
+                    final selected = repo.selectedPlaylistId == pl.id;
+                    return _PlaylistTile(playlist: pl, selected: selected);
                   },
                 );
               },
@@ -133,32 +125,30 @@ class _PlaylistTile extends StatefulWidget {
 
 class __PlaylistTileState extends State<_PlaylistTile> {
   bool _hovering = false;
+  final Color brightGreen = const Color(0xFF00FF00);
 
   @override
   Widget build(BuildContext context) {
-    final Color brightGreen = const Color(0xFF00FF00);
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
       child: ListTile(
-        tileColor: widget.selected ? brightGreen.withOpacity(0.2) : Colors.transparent,
+        tileColor: widget.selected
+            ? brightGreen.withOpacity(0.2)
+            : Colors.transparent,
         title: Text(
           widget.playlist.name,
           style: TextStyle(color: brightGreen),
         ),
         trailing: _hovering
-            ? InkWell(
-                onTap: () {
-                  Provider.of<PlaylistRepository>(context, listen: false)
-                      .deletePlaylist(widget.playlist.id);
-                },
-                child: Icon(Icons.close, color: brightGreen),
+            ? GestureDetector(
+                onTap: () => Provider.of<PlaylistRepository>(context, listen: false)
+                    .deletePlaylist(widget.playlist.id),
+                child: Icon(Icons.close, color: Colors.red, size: 18),
               )
             : null,
-        onTap: () {
-          Provider.of<PlaylistRepository>(context, listen: false)
-              .selectPlaylist(widget.playlist.id);
-        },
+        onTap: () => Provider.of<PlaylistRepository>(context, listen: false)
+            .selectPlaylist(widget.playlist.id),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
@@ -11,8 +12,7 @@ class PlayingSection extends StatefulWidget {
 }
 
 class _PlayingSectionState extends State<PlayingSection> {
-  // For demonstration, maintain a local list of dropped file paths.
-  List<String> droppedFiles = [];
+  List<String> _dropped = [];
 
   @override
   Widget build(BuildContext context) {
@@ -21,43 +21,35 @@ class _PlayingSectionState extends State<PlayingSection> {
     final Color sectionBg = const Color(0xFF151515);
 
     return Consumer<PlaylistRepository>(
-      builder: (context, repo, child) {
-        final Playlist? selectedPlaylist = repo.selectedPlaylistId != null
-            ? repo.playlists.firstWhere(
+      builder: (ctx, repo, _) {
+        final pl = repo.selectedPlaylistId == null
+            ? null
+            : repo.playlists.firstWhere(
                 (p) => p.id == repo.selectedPlaylistId,
-                orElse: () => Playlist(id: '', name: ''))
-            : null;
-        final List<String> songs = selectedPlaylist?.songPaths ?? [];
+                orElse: () => Playlist(id: '', name: ''),
+              );
+        final songs = (pl != null && pl.id.isNotEmpty)
+            ? pl.songPaths
+            : _dropped;
 
         return DropTarget(
-          onDragDone: (detail) {
-            // When files are dropped, add their paths to the selected playlist.
+          onDragDone: (d) {
+            final paths = d.files.map((f) => f.path).toList();
             setState(() {
-              final files = detail.files.map((file) => file.path).toList();
-              if (selectedPlaylist != null && selectedPlaylist.id.isNotEmpty) {
-                selectedPlaylist.songPaths.addAll(files);
-                repo.notifyListeners();
+              if (pl != null && pl.id.isNotEmpty) {
+                pl.songPaths.addAll(paths);
                 repo.savePlaylists();
               } else {
-                // For demonstration, store files locally if no playlist is selected.
-                droppedFiles.addAll(files);
+                _dropped.addAll(paths);
               }
             });
-          },
-          onDragEntered: (detail) {
-            // Optionally update UI when dragging enters.
-          },
-          onDragExited: (detail) {
-            // Optionally update UI when dragging exits.
           },
           child: Container(
             width: double.infinity,
             decoration: BoxDecoration(
               color: sectionBg,
-              // Vertical borders on left and right only.
-              border: Border(
-                left: BorderSide(color: darkGreen, width: 2),
-                right: BorderSide(color: darkGreen, width: 2),
+              border: Border.symmetric(
+                vertical: BorderSide(color: darkGreen, width: 2),
               ),
             ),
             padding: const EdgeInsets.all(10),
@@ -73,55 +65,80 @@ class _PlayingSectionState extends State<PlayingSection> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                if ((selectedPlaylist == null || selectedPlaylist.id.isEmpty) &&
-                    droppedFiles.isEmpty)
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'Select a playlist to view songs\nOr drag and drop tracks here',
-                        style: TextStyle(color: brightGreen, fontSize: 14),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: songs.isNotEmpty ? songs.length : droppedFiles.length,
-                      itemBuilder: (context, index) {
-                        final String song =
-                            songs.isNotEmpty ? songs[index] : droppedFiles[index];
-                        // For demonstration purposes, assume the first song is playing.
-                        final bool isSongPlaying = index == 0;
-                        return ListTile(
-                          tileColor: isSongPlaying
-                              ? brightGreen.withOpacity(0.2)
-                              : Colors.transparent,
-                          title: Text(
-                            song,
+                Expanded(
+                  child: songs.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Drop tracks here or select a playlist',
                             style: TextStyle(color: brightGreen),
+                            textAlign: TextAlign.center,
                           ),
-                          trailing: IconButton(
-                            icon: Icon(Icons.close, color: brightGreen, size: 20),
-                            onPressed: () {
-                              setState(() {
-                                if (songs.isNotEmpty) {
-                                  selectedPlaylist!.songPaths.removeAt(index);
-                                } else {
-                                  droppedFiles.removeAt(index);
-                                }
-                              });
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                        )
+                      : ListView.builder(
+                          itemCount: songs.length,
+                          itemBuilder: (_, i) {
+                            final playing = i == 0;
+                            return _SongTile(
+                              path: songs[i],
+                              playing: playing,
+                              onRemove: () {
+                                setState(() {
+                                  songs.removeAt(i);
+                                  repo.savePlaylists();
+                                });
+                              },
+                            );
+                          },
+                        ),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _SongTile extends StatefulWidget {
+  final String path;
+  final bool playing;
+  final VoidCallback onRemove;
+  const _SongTile({
+    Key? key,
+    required this.path,
+    required this.playing,
+    required this.onRemove,
+  }) : super(key: key);
+
+  @override
+  __SongTileState createState() => __SongTileState();
+}
+
+class __SongTileState extends State<_SongTile> {
+  bool _hover = false;
+  final Color brightGreen = const Color(0xFF00FF00);
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: ListTile(
+        tileColor: widget.playing
+            ? brightGreen.withOpacity(0.2)
+            : Colors.transparent,
+        title: Text(
+          widget.path.split(Platform.pathSeparator).last,
+          style: TextStyle(color: brightGreen),
+        ),
+        trailing: _hover
+            ? IconButton(
+                icon: Icon(Icons.close, color: Colors.red, size: 18),
+                onPressed: widget.onRemove,
+              )
+            : null,
+      ),
     );
   }
 }
