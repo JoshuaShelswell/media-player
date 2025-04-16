@@ -7,19 +7,22 @@ class MediaPlayerScreen extends StatefulWidget {
 }
 
 class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
-  // Bright neon green for text/icons
+  // Bright neon green for text and icons.
   final Color brightGreen = const Color(0xFF00FF00);
-
-  // Darker green for borders & placeholder text
+  
+  // Dark green (a semi-transparent version) for borders.
   late final Color darkGreen = brightGreen.withOpacity(0.4);
-
-  // Off-black background for most areas
+  
+  // Off-black background for outer areas.
   final Color offBlack = const Color(0xFF202020);
+  
+  // For the Library section's background.
+  final Color libraryGray = const Color(0xFF1E1E1E);
+  
+  // Use this same color for the inside of the search box, and now for all player sections.
+  final Color searchBoxBg = const Color(0xFF151515);
 
-  // Slightly lighter gray for the library pane
-  final Color libraryGray = const Color(0xFF2A2A2A);
-
-  // Example data
+  // Example data.
   final List<String> playlists = ['Playlist 1', 'Playlist 2', 'Playlist 3'];
   final List<String> nowPlaying = [
     'Song 1',
@@ -29,35 +32,36 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     'Song 5',
   ];
 
-  double trackProgress = 30.0; // current track progress
-  double volumeLevel = 70.0;   // volume
-  bool isShuffle = false;      // toggles shuffle icons
-  bool isPlaying = true;       // toggles play/pause icons
+  double trackProgress = 30.0; // Track progress (0-100)
+  double volumeLevel = 70.0;   // Volume (0-100)
+  bool isShuffle = false;      // Toggle for shuffle
+  bool isPlaying = true;       // Toggle for play/pause
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,  // let our custom container show
+      backgroundColor: Colors.transparent,  // So our custom container is visible.
       body: Container(
-        // Outer border around the entire window
+        // Outer container with border and overall background.
         decoration: BoxDecoration(
           color: offBlack,
           border: Border.all(color: darkGreen, width: 2),
         ),
         child: Column(
           children: [
-            // ---------- TOP CONTROL BAR ----------
+            // ---------- TOP CONTROL BAR (Player Section) ----------
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              // Changed background from offBlack to searchBoxBg for the player section.
               decoration: BoxDecoration(
-                color: offBlack,
+                color: searchBoxBg,
                 border: Border(
                   bottom: BorderSide(color: darkGreen, width: 2),
                 ),
               ),
               child: Row(
                 children: [
-                  // Left: Title + track info
+                  // Left: Title and track info.
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -77,8 +81,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                     ],
                   ),
                   Spacer(),
-
-                  // Middle: Progress bar w/ start & end time on sides
+                  // Middle: Progress slider with start and end times on sides.
                   Expanded(
                     flex: 3,
                     child: Row(
@@ -109,8 +112,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                     ),
                   ),
                   Spacer(),
-
-                  // Right: Playback controls & volume
+                  // Right: Playback controls and volume.
                   Row(
                     children: [
                       IconButton(
@@ -121,13 +123,15 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                         icon: _buildSvgIcon('assets/icons/ph--rewind-fill.svg'),
                         onPressed: () {},
                       ),
-                      // Play/Pause
+                      // Play/Pause toggle.
                       IconButton(
                         icon: isPlaying
                             ? _buildSvgIcon('assets/icons/ph--pause-circle-bold.svg')
                             : _buildSvgIcon('assets/icons/ph--play-circle-bold.svg'),
                         onPressed: () {
-                          setState(() => isPlaying = !isPlaying);
+                          setState(() {
+                            isPlaying = !isPlaying;
+                          });
                         },
                       ),
                       IconButton(
@@ -138,22 +142,23 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                         icon: _buildSvgIcon('assets/icons/ph--skip-forward-fill.svg'),
                         onPressed: () {},
                       ),
-                      // Shuffle
+                      // Shuffle toggle.
                       IconButton(
                         icon: isShuffle
                             ? _buildSvgIcon('assets/icons/ph--shuffle-bold.svg')
                             : _buildSvgIcon('assets/icons/ph--shuffle-off-bold.svg'),
                         onPressed: () {
-                          setState(() => isShuffle = !isShuffle);
+                          setState(() {
+                            isShuffle = !isShuffle;
+                          });
                         },
                       ),
                       SizedBox(width: 16),
-                      // Volume Icon
+                      // Volume icon and slider.
                       IconButton(
                         icon: _buildSvgIcon('assets/icons/ph--speaker-high-fill.svg'),
                         onPressed: () {},
                       ),
-                      // Volume Slider
                       SizedBox(
                         width: 100,
                         child: Slider(
@@ -161,7 +166,9 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                           min: 0,
                           max: 100,
                           onChanged: (val) {
-                            setState(() => volumeLevel = val);
+                            setState(() {
+                              volumeLevel = val;
+                            });
                           },
                           activeColor: brightGreen,
                           inactiveColor: darkGreen,
@@ -172,24 +179,23 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 ],
               ),
             ),
-
             // ---------- MAIN CONTENT ----------
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Left Pane: Playlists
+                  // Left Pane: Playlists (background: searchBoxBg)
                   Container(
                     width: 250,
                     decoration: BoxDecoration(
-                      color: offBlack,
+                      color: searchBoxBg,
                       border: Border(
                         right: BorderSide(color: darkGreen, width: 2),
                       ),
                     ),
                     child: Stack(
                       children: [
-                        // List of Playlists
+                        // Playlists list.
                         Positioned.fill(
                           child: Padding(
                             padding: const EdgeInsets.all(10),
@@ -224,19 +230,18 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                             ),
                           ),
                         ),
-                        // Bottom-left "Add Playlist"
+                        // "Add Playlist" button pinned to bottom left.
                         Positioned(
                           bottom: 10,
                           left: 10,
                           child: InkWell(
                             onTap: () {
-                              // Add Playlist logic
+                              // Add Playlist logic.
                             },
                             child: Container(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: offBlack,
+                                color: searchBoxBg,
                                 border: Border.all(color: darkGreen, width: 2),
                               ),
                               child: Row(
@@ -265,12 +270,11 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                       ],
                     ),
                   ),
-
-                  // Middle Pane: Now Playing
+                  // Middle Pane: Now Playing (background: searchBoxBg)
                   Container(
                     width: 350,
                     decoration: BoxDecoration(
-                      color: offBlack,
+                      color: searchBoxBg,
                       border: Border(
                         right: BorderSide(color: darkGreen, width: 2),
                       ),
@@ -308,7 +312,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                                   ),
                                   GestureDetector(
                                     onTap: () {
-                                      // remove track from nowPlaying
+                                      // Remove track action.
                                     },
                                     child: Icon(
                                       Icons.close,
@@ -324,8 +328,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                       ],
                     ),
                   ),
-
-                  // Right Pane: Library (gray background)
+                  // Right Pane: Library (remains unchanged)
                   Expanded(
                     child: Container(
                       color: libraryGray,
@@ -342,18 +345,18 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                             ),
                           ),
                           SizedBox(height: 8),
+                          // Search box: background as searchBoxBg.
                           Container(
                             decoration: BoxDecoration(
-                              color: libraryGray,
+                              color: searchBoxBg,
                               border: Border.all(color: darkGreen, width: 1),
                             ),
                             child: TextField(
                               style: TextStyle(color: brightGreen, fontSize: 14),
                               decoration: InputDecoration(
-                                contentPadding:
-                                    const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                 hintText: 'Search library...',
-                                hintStyle: TextStyle(color: darkGreen),
+                                hintStyle: TextStyle(color: brightGreen),
                                 border: InputBorder.none,
                               ),
                             ),
@@ -381,13 +384,9 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     );
   }
 
-  /// Helper to load an SVG icon with optional color/size overrides.
-  Widget _buildSvgIcon(
-    String assetPath, {
-    Color? iconColor,
-    double width = 24,
-    double height = 24,
-  }) {
+  /// Helper to load an SVG icon with optional color and size overrides.
+  Widget _buildSvgIcon(String assetPath,
+      {Color? iconColor, double width = 24, double height = 24}) {
     return SvgPicture.asset(
       assetPath,
       width: width,

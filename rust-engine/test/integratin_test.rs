@@ -10,6 +10,13 @@ mod tests {
         play_audio(track.as_ptr());
     }
 
+    fn test_play_audio_file() {
+        let test_file = CString::new("test_data/sample.mp3").unwrap();
+        let result = play_audio_file_ffi(test_file.as_ptr());
+        // Assuming 0 is success.
+        assert_eq!(result, 0);
+    }
+
     #[test]
     fn test_control_bluetooth() {
         let command = CString::new("play").unwrap();

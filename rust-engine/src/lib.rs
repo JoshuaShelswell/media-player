@@ -1,30 +1,52 @@
-// media-player-project/rust-engine/src/lib.rs
+// rust-engine/src/lib.rs
+
 mod audio;
-mod bluetooth;
 
+use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
-use std::ffi::CStr;
 
-/// FFI function to play audio using ffmpeg and cpal.
-/// Expects a pointer to a null-terminated UTF-8 string (track path or name).
-#[no_mangle]
-pub extern "C" fn play_audio(track_ptr: *const c_char) {
-    unsafe {
-        let c_str = CStr::from_ptr(track_ptr);
-        let track = c_str.to_str().expect("Invalid UTF-8 string");
-        println!("Rust Engine: Playing track '{}'", track);
-        audio::player::play(track);
-    }
-}
+// Re-export items from the audio module if desired.
+pub use audio::buffer::AudioRingBuffer;
+pub use audio::decoder::{initialize_ffmpeg, get_supported_extensions, is_supported_audio_format, play_audio_file};
+pub use audio::position::PlaybackPosition;
+pub use audio::state::{PlayerState, PlaybackStatus};
 
-/// FFI function to handle Bluetooth commands.
-/// Expects a pointer to a null-terminated UTF-8 string with the command.
 #[no_mangle]
-pub extern "C" fn control_bluetooth(command_ptr: *const c_char) {
-    unsafe {
-        let c_str = CStr::from_ptr(command_ptr);
-        let command = c_str.to_str().expect("Invalid UTF-8 string");
-        println!("Rust Engine: Received Bluetooth command '{}'", command);
-        bluetooth::controller::handle_command(command);
+pub extern "C" fn play_audio_file_ffi(file_path: *const c_char) -> i32 {
+    // Convert the incoming C string into a Rust string.
+    let path = unsafe {
+        if file_path.is_null() {
+            return -1; // Error code for null pointer.
+        }
+        match CStr::from_ptr(file_path).to_str() {
+            Ok(s) => s.to_owned(),
+            Err(_) => return -2, // Conversion error.
+        }
+    };
+
+    // Create or initialize necessary flags, state, and other parameters.
+    // For real use, you likely want to manage these over multiple calls.
+    use std::sync::{Arc, Mutex, atomic::AtomicBool};
+    use audio::decoder::play_audio_file;
+
+    // We create dummy flags and state here.
+    let pause_flag = Arc::new(AtomicBool::new(false));
+    let stop_flag = Arc::new(AtomicBool::new(false));
+    let state = Arc::new(Mutex::new(PlayerState::default()));
+    let playback_position = Arc::new(Mutex::new(PlaybackPosition::new(44100)));
+    let volume = Arc::new(Mutex::new(1.0_f32));
+
+    // Call the play function from the decoder module.
+    // This function should already be implemented in your old code.
+    match play_audio_file(
+        &path,
+        pause_flag,
+        stop_flag,
+        state,
+        playback_position,
+        volume,
+    ) {
+        Ok(_) => 0,  // Success
+        Err(_) => -3, // Failure launching playback
     }
 }

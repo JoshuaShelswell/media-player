@@ -1,14 +1,11 @@
-// media-player-project/flutter-media-player/lib/services/rust_bridge.dart
 import 'dart:ffi';
 import 'dart:io' show Platform;
 import 'package:ffi/ffi.dart';
 
-// Define the native function signature for Rust's play_audio function.
-typedef PlayAudioFunc = Void Function(Pointer<Utf8>);
-typedef PlayAudio = void Function(Pointer<Utf8>);
+typedef PlayAudioFileFunc = Int32 Function(Pointer<Utf8>);
+typedef PlayAudioFile = int Function(Pointer<Utf8>);
 
 class RustBridge {
-  // Load the Rust dynamic library (update the filename as needed for your platform).
   static final DynamicLibrary _dylib = () {
     if (Platform.isWindows) {
       return DynamicLibrary.open('rust_engine.dll');
@@ -21,14 +18,15 @@ class RustBridge {
     }
   }();
 
-  static final PlayAudio _playAudio = _dylib
-      .lookup<NativeFunction<PlayAudioFunc>>('play_audio')
+  // Existing function(s)…
+  static final PlayAudioFile _playAudioFile = _dylib
+      .lookup<NativeFunction<PlayAudioFileFunc>>('play_audio_file_ffi')
       .asFunction();
 
-  /// Calls the Rust play_audio function.
-  static void playAudio(String track) {
-    final trackPtr = track.toNativeUtf8();
-    _playAudio(trackPtr);
-    malloc.free(trackPtr);
+  static int playAudioFile(String filePath) {
+    final ptr = filePath.toNativeUtf8();
+    final result = _playAudioFile(ptr);
+    malloc.free(ptr);
+    return result;
   }
 }
