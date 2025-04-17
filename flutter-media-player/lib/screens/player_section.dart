@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 class PlayerSection extends StatefulWidget {
   const PlayerSection({Key? key}) : super(key: key);
+
   @override
   _PlayerSectionState createState() => _PlayerSectionState();
 }
@@ -14,8 +15,8 @@ class _PlayerSectionState extends State<PlayerSection> {
 
   double _volume = 0.75;
   bool _muted = false;
-  bool _shuffle = false; // default OFF
-  bool _playing = false; // default PAUSED
+  bool _shuffle = false;
+  bool _playing = false;
 
   String get _speakerAsset {
     if (_muted) return 'assets/icons/ph--speaker-x-fill.svg';
@@ -26,12 +27,14 @@ class _PlayerSectionState extends State<PlayerSection> {
   }
 
   void _toggleMute() => setState(() => _muted = !_muted);
+
   void _onVolumeChanged(double val) {
     setState(() {
       _volume = val;
       if (val > 0) _muted = false;
     });
   }
+
   void _toggleShuffle() => setState(() => _shuffle = !_shuffle);
   void _togglePlay() => setState(() => _playing = !_playing);
 
@@ -40,7 +43,9 @@ class _PlayerSectionState extends State<PlayerSection> {
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
-        border: Border(bottom: BorderSide(color: darkGreen, width: 2)),
+        border: Border(
+          bottom: BorderSide(color: darkGreen, width: 2),
+        ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -62,9 +67,10 @@ class _PlayerSectionState extends State<PlayerSection> {
               ),
             ),
           ),
+
           const SizedBox(width: 16),
 
-          // Track title & artist
+          // Track info
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -78,7 +84,7 @@ class _PlayerSectionState extends State<PlayerSection> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Example Track – Artist Name',
+                'Example Track – Artist Name',
                 style: TextStyle(
                   color: brightGreen.withOpacity(0.8),
                   fontSize: 14,
@@ -86,9 +92,10 @@ class _PlayerSectionState extends State<PlayerSection> {
               ),
             ],
           ),
+
           const SizedBox(width: 24),
 
-          // Inline progress bar
+          // Progress bar inline
           Text('0:00', style: TextStyle(color: brightGreen)),
           const SizedBox(width: 8),
           Expanded(
@@ -101,9 +108,10 @@ class _PlayerSectionState extends State<PlayerSection> {
           ),
           const SizedBox(width: 8),
           Text('3:45', style: TextStyle(color: brightGreen)),
+
           const SizedBox(width: 24),
 
-          // Playback + shuffle controls group
+          // Playback controls + shuffle
           IconButton(
             icon: SvgPicture.asset(
               'assets/icons/ph--skip-back-fill.svg',
@@ -151,8 +159,6 @@ class _PlayerSectionState extends State<PlayerSection> {
             ),
             onPressed: () {},
           ),
-          // **Shuffle** now in line with the others,
-          // with the same default splash/circle
           IconButton(
             icon: SvgPicture.asset(
               _shuffle
@@ -165,30 +171,33 @@ class _PlayerSectionState extends State<PlayerSection> {
             onPressed: _toggleShuffle,
           ),
 
-          const SizedBox(width: 36),
+          // Push volume controls to the right
+          SizedBox(width: 24),
 
-          // Volume icon + slider
-          IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 24, height: 24),
-            icon: SvgPicture.asset(
-              _speakerAsset,
-              color: brightGreen,
-              width: 24,
-              height: 24,
-            ),
-            onPressed: _toggleMute,
-          ),
+          // Volume icon nudged 8px right to hug the slider
           Transform.translate(
-            offset: const Offset(-24, 0),
-            child: SizedBox(
-              width: 200,
-              child: Slider(
-                activeColor: brightGreen,
-                inactiveColor: darkGreen,
-                value: _muted ? 0 : _volume,
-                onChanged: _onVolumeChanged,
+            offset: const Offset(8, 0),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+              icon: SvgPicture.asset(
+                _speakerAsset,
+                color: brightGreen,
+                width: 24,
+                height: 24,
               ),
+              onPressed: _toggleMute,
+            ),
+          ),
+
+          // Volume slider
+          SizedBox(
+            width: 200,
+            child: Slider(
+              activeColor: brightGreen,
+              inactiveColor: darkGreen,
+              value: _muted ? 0 : _volume,
+              onChanged: _onVolumeChanged,
             ),
           ),
         ],
