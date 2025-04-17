@@ -3,14 +3,14 @@ $ErrorActionPreference = "Stop"
 
 function Kill-ExistingFlutterRemote {
     Write-Host "Checking for running flutter_remote.exe..."
-    $processes = Get-Process -Name flutter_remote -ErrorAction SilentlyContinue
-    if ($processes) {
-        Write-Host "Found running flutter_remote.exe, terminating..."
-        $processes | Stop-Process -Force
+    $procs = Get-Process -Name flutter_remote -ErrorAction SilentlyContinue
+    if ($procs) {
+        Write-Host "Terminating flutter_remote.exe…"
+        $procs | Stop-Process -Force
         Start-Sleep -Seconds 3
     }
     else {
-        Write-Host "No existing flutter_remote.exe process found."
+        Write-Host "No existing flutter_remote.exe found."
     }
 }
 
@@ -23,63 +23,66 @@ function Build-RustEngine {
 }
 
 function Copy-RustEngineDll {
-    Write-Host "Locating rust_engine.dll..."
-
-    # look in both possible target folders
+    Write-Host "Locating rust_engine.dll…"
     $candidates = @(
         "$PSScriptRoot\rust-engine\target\release\rust_engine.dll",
         "$PSScriptRoot\target\release\rust_engine.dll"
     )
     $src = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-
     if (-not $src) {
-        Write-Error "❌ rust_engine.dll not found in:`n  $($candidates -join "`n  ")"
+        Write-Error "❌ rust_engine.dll not found under:`n  $($candidates -join "`n  ")"
         exit 1
     }
     Write-Host "  Found: $src"
 
-    $destDir = "$PSScriptRoot\flutter-media-player\build\windows\x64\runner\Debug"
-    if (-not (Test-Path $destDir)) {
-        Write-Host "  Creating destination folder: $destDir"
-        New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+    $dest = "$PSScriptRoot\flutter-media-player\build\windows\x64\runner\Debug"
+    if (-not (Test-Path $dest)) {
+        New-Item -ItemType Directory -Path $dest -Force | Out-Null
+    }
+    Copy-Item -Path $src -Destination (Join-Path $dest "rust_engine.dll") -Force
+    Write-Host "Copied rust_engine.dll → $dest"
+}
+
+function Copy-FFmpegDlls {
+    Write-Host "Copying FFmpeg dependencies…"
+    # <-- Updated path to where vcpkg actually places ffmpeg DLLs:
+    $vcpkgBin = "C:\vcpkg\packages\ffmpeg_x64-windows\bin"
+    if (-not (Test-Path $vcpkgBin)) {
+        Write-Error "FFmpeg bin folder not found at $vcpkgBin"
+        exit 1
     }
 
-    Write-Host "Copying to Flutter runner…"
-    Copy-Item -Path $src -Destination "$destDir\rust_engine.dll" -Force
-    Write-Host "  → $destDir\rust_engine.dll"
+    $dest = "$PSScriptRoot\flutter-media-player\build\windows\x64\runner\Debug"
+    Get-ChildItem -Path $vcpkgBin -Filter "av*.dll" | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination $dest -Force
+        Write-Host "  $_ → $dest"
+    }
+    Write-Host "FFmpeg DLLs copied."
 }
 
 function Run-FlutterMediaPlayer {
-    Write-Host "Launching Flutter Media Player for Windows in Debug mode..."
+    Write-Host "Launching Flutter Media Player for Windows…"
     Push-Location "$PSScriptRoot\flutter-media-player"
 
     if (!(Test-Path "$PSScriptRoot\flutter-media-player\windows")) {
-        Write-Host "Windows desktop support not configured. Creating Windows project..."
+        Write-Host "Configuring Windows desktop support…"
         flutter create .
     }
 
     flutter pub get
     Kill-ExistingFlutterRemote
 
-    Write-Host "Starting 'flutter run -d windows --debug'…"
+    Write-Host "Starting flutter run -d windows --debug…"
     $flutterProcess = Start-Process flutter -ArgumentList "run -d windows --debug" -NoNewWindow -PassThru
 
-    Write-Host "Waiting for flutter_remote.exe to appear…"
-    $found = $false
+    Write-Host "Waiting for flutter_remote.exe…"
     for ($i = 0; $i -lt 20; $i++) {
         if (Get-Process -Name "flutter_remote" -ErrorAction SilentlyContinue) {
-            $found = $true; break
+            Write-Host "flutter_remote.exe is running."
+            Wait-Process -Name "flutter_remote"
+            break
         }
         Start-Sleep -Seconds 1
-    }
-
-    if ($found) {
-        Write-Host "flutter_remote.exe is running. Close it to exit."
-        Wait-Process -Name "flutter_remote"
-    }
-    else {
-        Write-Host "flutter_remote.exe never appeared. Press Enter to exit."
-        Read-Host
     }
 
     if (-not $flutterProcess.HasExited) {
@@ -90,16 +93,8 @@ function Run-FlutterMediaPlayer {
     Pop-Location
 }
 
-function Run-FlutterRemote {
-    Write-Host "Launching Flutter Remote (Android)…"
-    Push-Location "$PSScriptRoot\flutter-remote"
-    flutter pub get
-    # flutter run -d android --debug
-    Pop-Location
-}
-
 # --- Main Script Execution ---
 Build-RustEngine
 Copy-RustEngineDll
+Copy-FFmpegDlls
 Run-FlutterMediaPlayer
-# Run-FlutterRemote   # Uncomment if you wish to launch the remote app.

@@ -1,16 +1,18 @@
+// lib/screens/player_section.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class PlayerSection extends StatefulWidget {
-  const PlayerSection({Key? key}) : super(key: key);
+  const PlayerSection({super.key});
 
   @override
-  _PlayerSectionState createState() => _PlayerSectionState();
+  State<PlayerSection> createState() => PlayerSectionState();
 }
 
-class _PlayerSectionState extends State<PlayerSection> {
+class PlayerSectionState extends State<PlayerSection> {
   final Color brightGreen = const Color(0xFF00FF00);
-  late final Color darkGreen = brightGreen.withOpacity(0.4);
+  late final Color darkGreen = brightGreen.withAlpha((0.4 * 255).round());
   final Color bgColor = const Color(0xFF151515);
 
   double _volume = 0.75;
@@ -61,7 +63,7 @@ class _PlayerSectionState extends State<PlayerSection> {
             child: Center(
               child: SvgPicture.asset(
                 'assets/icons/ph--music-notes-fill.svg',
-                color: brightGreen.withOpacity(0.5),
+                color: brightGreen.withAlpha((0.5 * 255).round()),
                 width: 32,
                 height: 32,
               ),
@@ -86,7 +88,7 @@ class _PlayerSectionState extends State<PlayerSection> {
               Text(
                 'Example Track – Artist Name',
                 style: TextStyle(
-                  color: brightGreen.withOpacity(0.8),
+                  color: brightGreen.withAlpha((0.8 * 255).round()),
                   fontSize: 14,
                 ),
               ),
@@ -172,7 +174,7 @@ class _PlayerSectionState extends State<PlayerSection> {
           ),
 
           // Push volume controls to the right
-          SizedBox(width: 24),
+          const SizedBox(width: 24),
 
           // Volume icon nudged 8px right to hug the slider
           Transform.translate(

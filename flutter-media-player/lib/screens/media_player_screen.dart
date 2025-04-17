@@ -5,13 +5,13 @@ import 'player_section.dart';
 import 'library_section.dart';
 
 class MediaPlayerScreen extends StatelessWidget {
-  const MediaPlayerScreen({Key? key}) : super(key: key);
+  const MediaPlayerScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     // your neon green & dark green
     const brightGreen = Color(0xFF00FF00);
-    final borderColor = brightGreen.withOpacity(0.4);
+    final borderColor = brightGreen.withAlpha((0.4 * 255).round());
 
     return Scaffold(
       body: Container(

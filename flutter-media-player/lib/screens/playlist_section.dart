@@ -4,17 +4,17 @@ import 'package:provider/provider.dart';
 import '../services/playlist_repository.dart';
 
 class PlaylistSection extends StatefulWidget {
-  const PlaylistSection({Key? key}) : super(key: key);
+  const PlaylistSection({super.key});
 
   @override
-  _PlaylistSectionState createState() => _PlaylistSectionState();
+  State<PlaylistSection> createState() => _PlaylistSectionState();
 }
 
 class _PlaylistSectionState extends State<PlaylistSection> {
   final TextEditingController _playlistController = TextEditingController();
 
   static const Color brightGreen = Color(0xFF00FF00);
-  late final Color darkGreen = brightGreen.withOpacity(0.4);
+  late final Color darkGreen = brightGreen.withAlpha((0.4 * 255).round());
   static const Color sectionBg = Color(0xFF151515);
 
   @override
@@ -58,41 +58,54 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                   icon: const Icon(Icons.add),
                   color: brightGreen,
                   onPressed: () async {
+                    // grab repo now, before the async gap
+                    final repo = context.read<PlaylistRepository>();
+
                     final result = await showDialog<String>(
                       context: context,
-                      builder: (_) => AlertDialog(
+                      builder: (dialogCtx) => AlertDialog(
                         backgroundColor: Colors.black,
-                        title: const Text('Add Playlist',
-                            style: TextStyle(color: brightGreen)),
+                        title: const Text(
+                          'Add Playlist',
+                          style: TextStyle(color: brightGreen),
+                        ),
                         content: TextField(
                           controller: _playlistController,
                           style: const TextStyle(color: brightGreen),
                           decoration: InputDecoration(
                             hintText: 'Playlist name',
-                            hintStyle:
-                                TextStyle(color: brightGreen.withOpacity(0.7)),
+                            hintStyle: TextStyle(
+                              color: brightGreen.withAlpha(
+                                  (0.7 * 255).round()),
+                            ),
                           ),
                         ),
                         actions: [
                           TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Cancel',
-                                style: TextStyle(color: brightGreen)),
+                            onPressed: () => Navigator.pop(dialogCtx),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(color: brightGreen),
+                            ),
                           ),
                           TextButton(
                             onPressed: () {
-                              final name = _playlistController.text.trim();
-                              Navigator.pop(context, name);
+                              final name =
+                                  _playlistController.text.trim();
+                              Navigator.pop(dialogCtx, name);
                             },
-                            child: const Text('Add',
-                                style: TextStyle(color: brightGreen)),
+                            child: const Text(
+                              'Add',
+                              style: TextStyle(color: brightGreen),
+                            ),
                           ),
                         ],
                       ),
                     );
+
+                    if (!mounted) return;
                     if (result != null && result.isNotEmpty) {
-                      Provider.of<PlaylistRepository>(context, listen: false)
-                          .addPlaylist(result);
+                      repo.addPlaylist(result);
                       _playlistController.clear();
                     }
                   },
@@ -129,14 +142,14 @@ class _PlaylistSectionState extends State<PlaylistSection> {
 class _PlaylistTile extends StatefulWidget {
   final Playlist playlist;
   final bool selected;
+
   const _PlaylistTile({
-    Key? key,
     required this.playlist,
     required this.selected,
-  }) : super(key: key);
+  });
 
   @override
-  __PlaylistTileState createState() => __PlaylistTileState();
+  State<_PlaylistTile> createState() => __PlaylistTileState();
 }
 
 class __PlaylistTileState extends State<_PlaylistTile> {
@@ -152,7 +165,8 @@ class __PlaylistTileState extends State<_PlaylistTile> {
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: widget.selected
             ? BoxDecoration(
-                color: brightGreen.withOpacity(0.15),
+                color:
+                    brightGreen.withAlpha((0.15 * 255).round()),
               )
             : null,
         child: ListTile(
@@ -162,16 +176,21 @@ class __PlaylistTileState extends State<_PlaylistTile> {
           ),
           trailing: _hovering
               ? InkWell(
-                  onTap: () => Provider.of<PlaylistRepository>(context,
-                          listen: false)
-                      .deletePlaylist(widget.playlist.id),
-                  child: const Icon(Icons.close,
-                      color: Colors.red, size: 18),
+                  onTap: () {
+                    // safe to call context here immediately
+                    context
+                        .read<PlaylistRepository>()
+                        .deletePlaylist(widget.playlist.id);
+                  },
+                  child:
+                      const Icon(Icons.close, color: Colors.red, size: 18),
                 )
               : null,
-          onTap: () => Provider.of<PlaylistRepository>(context,
-                  listen: false)
-              .selectPlaylist(widget.playlist.id),
+          onTap: () {
+            context
+                .read<PlaylistRepository>()
+                .selectPlaylist(widget.playlist.id);
+          },
         ),
       ),
     );

@@ -5,40 +5,40 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
 import '../services/playlist_repository.dart';
-import '../services/audio_player.dart'; // ← NEW
+import '../services/audio_player.dart';
 
 class PlayingSection extends StatefulWidget {
-  const PlayingSection({Key? key}) : super(key: key);
+  const PlayingSection({super.key});
 
   @override
-  _PlayingSectionState createState() => _PlayingSectionState();
+  State<PlayingSection> createState() => PlayingSectionState();
 }
 
-class _PlayingSectionState extends State<PlayingSection> {
+class PlayingSectionState extends State<PlayingSection> {
   List<String> droppedFiles = [];
 
   @override
   Widget build(BuildContext context) {
     final Color brightGreen = const Color(0xFF00FF00);
-    final Color darkGreen   = brightGreen.withOpacity(0.4);
-    final Color sectionBg   = const Color(0xFF151515);
+    final Color darkGreen = brightGreen.withAlpha((0.4 * 255).round());
+    final Color sectionBg = const Color(0xFF151515);
 
     return Consumer<PlaylistRepository>(
       builder: (context, repo, _) {
         final selected = repo.selectedPlaylistId != null
             ? repo.playlists.firstWhere(
                 (p) => p.id == repo.selectedPlaylistId,
-                orElse: () => Playlist(id: '', name: ''))
+                orElse: () => Playlist(id: '', name: ''),
+              )
             : null;
         final songs = selected?.songPaths ?? [];
 
         return DropTarget(
-          onDragDone: (d) {
-            final paths = d.files.map((f) => f.path).toList();
+          onDragDone: (event) {
+            final paths = event.files.map((f) => f.path).toList();
             setState(() {
               if (selected != null && selected.id.isNotEmpty) {
                 selected.songPaths.addAll(paths);
-                repo.notifyListeners();
                 repo.savePlaylists();
               } else {
                 droppedFiles.addAll(paths);
@@ -50,7 +50,7 @@ class _PlayingSectionState extends State<PlayingSection> {
             decoration: BoxDecoration(
               color: sectionBg,
               border: Border(
-                left:  BorderSide(color: darkGreen, width: 2),
+                left: BorderSide(color: darkGreen, width: 2),
                 right: BorderSide(color: darkGreen, width: 2),
               ),
             ),
@@ -83,18 +83,18 @@ class _PlayingSectionState extends State<PlayingSection> {
                       ? Center(
                           child: Text(
                             'Select a playlist to view songs\nOr drag and drop tracks here',
-                            style: TextStyle(color: brightGreen, fontSize: 14),
+                            style: TextStyle(
+                              color: brightGreen,
+                              fontSize: 14,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         )
                       : ListView.builder(
-                          itemCount: songs.isNotEmpty
-                              ? songs.length
-                              : droppedFiles.length,
+                          itemCount:
+                              songs.isNotEmpty ? songs.length : droppedFiles.length,
                           itemBuilder: (ctx, i) {
-                            final track = songs.isNotEmpty
-                                ? songs[i]
-                                : droppedFiles[i];
+                            final track = songs.isNotEmpty ? songs[i] : droppedFiles[i];
                             return MouseRegion(
                               cursor: SystemMouseCursors.click,
                               child: ListTile(
@@ -103,7 +103,6 @@ class _PlayingSectionState extends State<PlayingSection> {
                                   style: TextStyle(color: brightGreen),
                                 ),
                                 onTap: () {
-                                  // ← CALL INTO RUST
                                   AudioPlayer.play(track);
                                 },
                               ),

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -28,7 +27,6 @@ Future<void> main() async {
 }
 
 class MyWindowListener extends WindowListener {
-  // Save window position on close event.
   @override
   void onWindowClose() async {
     final pos = await windowManager.getPosition();
@@ -37,7 +35,6 @@ class MyWindowListener extends WindowListener {
     await prefs.setDouble('windowPosY', pos.dy);
   }
 
-  // We'll also continue to poll periodically in case moves are not caught.
   @override
   void onWindowMove() async {
     final pos = await windowManager.getPosition();
@@ -48,10 +45,10 @@ class MyWindowListener extends WindowListener {
 }
 
 class MyMediaPlayerApp extends StatefulWidget {
-  const MyMediaPlayerApp({Key? key}) : super(key: key);
+  const MyMediaPlayerApp({super.key});
 
   @override
-  _MyMediaPlayerAppState createState() => _MyMediaPlayerAppState();
+  State<MyMediaPlayerApp> createState() => _MyMediaPlayerAppState();
 }
 
 class _MyMediaPlayerAppState extends State<MyMediaPlayerApp> with WindowListener {
@@ -60,9 +57,7 @@ class _MyMediaPlayerAppState extends State<MyMediaPlayerApp> with WindowListener
   @override
   void initState() {
     super.initState();
-    // Optionally, add the window listener here again if needed.
     windowManager.addListener(this);
-    // Start a periodic timer to poll the window position every second.
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       final Offset pos = await windowManager.getPosition();
       final SharedPreferences prefs = await SharedPreferences.getInstance();
