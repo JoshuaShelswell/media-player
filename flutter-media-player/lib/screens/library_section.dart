@@ -92,7 +92,7 @@ class _LibrarySectionState extends State<LibrarySection> {
 
     return Container(
       color: sectionBg,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(10),
       child: Column(
         children: [
           // — Header row — back / forward / up / search / toggle
