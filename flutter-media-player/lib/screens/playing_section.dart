@@ -11,7 +11,7 @@ import '../services/playlist_repository.dart';
 import '../services/player_model.dart';
 
 class PlayingSection extends StatefulWidget {
-  const PlayingSection({Key? key}) : super(key: key);
+  const PlayingSection({super.key});
 
   @override
   State<PlayingSection> createState() => _PlayingSectionState();
@@ -46,8 +46,8 @@ class _PlayingSectionState extends State<PlayingSection> {
     final pid    = repo.selectedPlaylistId;
     if (pid == null) return;
 
-    final pl    = repo.playlists.firstWhere((p) => p.id == pid);
-    final songs = pl.songPaths;
+    final pl     = repo.playlists.firstWhere((p) => p.id == pid);
+    final songs  = pl.songPaths;
     final current = player.currentPath;
     if (current == null) return;
 
@@ -72,7 +72,7 @@ class _PlayingSectionState extends State<PlayingSection> {
     final pl   = pid != null
         ? repo.playlists.firstWhere((p) => p.id == pid)
         : null;
-    final songs = pl?.songPaths ?? [];
+    final songs  = pl?.songPaths ?? [];
 
     final player  = context.watch<PlayerModel>();
     final current = player.currentPath;
@@ -177,8 +177,11 @@ class _PlayingSectionState extends State<PlayingSection> {
                                 ],
                               ),
                               onTap: () async {
-                                await context.read<PlayerModel>().stop();
-                                await context.read<PlayerModel>().play(track);
+                                // Avoid using `context` after an await:
+                                final playerModel = context.read<PlayerModel>();
+                                await playerModel.stop();
+                                if (!mounted) return;
+                                await playerModel.play(track);
                               },
                               trailing: isHover
                                   ? InkWell(

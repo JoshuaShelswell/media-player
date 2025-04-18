@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:provider/provider.dart';
 
 class LibrarySection extends StatefulWidget {
   const LibrarySection({super.key});
@@ -27,10 +26,10 @@ class _LibrarySectionState extends State<LibrarySection> {
   static const Color sectionBg = Color(0xFF1F1F1F);
 
   // grid config
-  static const double _itemSize     = 80;
-  static const double _spacingFull  = 20;
-  static const double _spacing      = _spacingFull / 2; // now 10px
-  static const int    _columns      = 4;
+  static const double _itemSize       = 80;
+  static const double _spacingFull    = 20;
+  static const double _spacing        = _spacingFull / 2; // now 10px
+  static const int    _columns        = 4;
   static const int    _placeholderRows = 4;
 
   @override

@@ -1,7 +1,7 @@
 # dev.ps1
 $ErrorActionPreference = "Stop"
 
-function Kill-ExistingFlutterRemote {
+function Stop-ExistingFlutterRemote {
     Write-Host "Checking for running flutter_remote.exe..."
     $processes = Get-Process -Name flutter_remote -ErrorAction SilentlyContinue
     if ($processes) {
@@ -14,7 +14,7 @@ function Kill-ExistingFlutterRemote {
     }
 }
 
-function Build-RustEngine {
+function Invoke-BuildRustEngine {
     Write-Host "Building Rust engine..."
     Push-Location "$PSScriptRoot\rust-engine"
     cargo build --release
@@ -56,7 +56,6 @@ function Copy-FFmpegDlls {
         New-Item -ItemType Directory -Path $dest -Force | Out-Null
     }
 
-    # Copy all .dll files whose names start with av* or sw*
     Get-ChildItem -Path $vcpkgBin -Filter '*.dll' -File |
       Where-Object { $_.Name -match '^(av|sw)' } |
       ForEach-Object {
@@ -67,7 +66,7 @@ function Copy-FFmpegDlls {
     Write-Host "FFmpeg DLLs copied."
 }
 
-function Run-FlutterMediaPlayer {
+function Invoke-RunFlutterMediaPlayer {
     Write-Host "Launching Flutter Media Player for Windows…"
     Push-Location "$PSScriptRoot\flutter-media-player"
 
@@ -77,7 +76,7 @@ function Run-FlutterMediaPlayer {
     }
 
     flutter pub get
-    Kill-ExistingFlutterRemote
+    Stop-ExistingFlutterRemote
 
     Write-Host "Starting flutter run -d windows --debug…"
     $flutterProcess = Start-Process flutter -ArgumentList "run -d windows --debug" -NoNewWindow -PassThru
@@ -101,7 +100,7 @@ function Run-FlutterMediaPlayer {
 }
 
 # --- Main Script Execution ---
-Build-RustEngine
+Invoke-BuildRustEngine
 Copy-RustEngineDll
 Copy-FFmpegDlls
-Run-FlutterMediaPlayer
+Invoke-RunFlutterMediaPlayer
