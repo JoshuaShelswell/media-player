@@ -128,7 +128,6 @@ class _PlayerSectionState extends State<PlayerSection> {
             ),
             child: _albumArtPath != null
                 ? ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
                     child: Image.file(
                       File(_albumArtPath!),
                       fit: BoxFit.cover,
@@ -156,7 +155,7 @@ class _PlayerSectionState extends State<PlayerSection> {
                 titleText,
                 style: TextStyle(
                   color: brightGreen,
-                  fontSize: 18,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
