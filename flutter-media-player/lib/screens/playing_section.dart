@@ -24,6 +24,7 @@ class _PlayingSectionState extends State<PlayingSection> {
   @override
   void initState() {
     super.initState();
+    // Listen for playback updates
     context.read<PlayerModel>().addListener(_onPlaybackUpdate);
   }
 
@@ -34,33 +35,45 @@ class _PlayingSectionState extends State<PlayingSection> {
   }
 
   void _onPlaybackUpdate() {
-    final player = context.read<PlayerModel>();
-    if (_wasPlaying &&
-        !player.isPlaying &&
-        player.currentPath != null) {
-      context
-          .read<PlaylistRepository>()
-          .incrementPlayCount(player.currentPath!);
+    final model = context.read<PlayerModel>();
+    final repo  = context.read<PlaylistRepository>();
+
+    // If we were playing, but now stopped, and we had a currentPath:
+    if (_wasPlaying && !model.isPlaying && model.currentPath != null) {
+      // 1) Increment the play count:
+      repo.incrementPlayCount(model.currentPath!);
+
+      // 2) Auto‐advance to the next track in the same playlist (if any):
+      final playlistId = repo.selectedPlaylistId;
+      if (playlistId != null) {
+        final pl = repo.playlists.firstWhere((p) => p.id == playlistId);
+        final songs = pl.songPaths;
+        final idx = songs.indexOf(model.currentPath!);
+        if (idx >= 0 && idx < songs.length - 1) {
+          final next = songs[idx + 1];
+          model.play(next);
+        }
+      }
     }
-    _wasPlaying = player.isPlaying;
+
+    // Update our flag for next time:
+    _wasPlaying = model.isPlaying;
   }
 
   @override
   Widget build(BuildContext context) {
     const brightGreen = Color(0xFF00FF00);
-    final darkGreen =
-        brightGreen.withAlpha((0.4 * 255).round());
-    const sectionBg = Color(0xFF151515);
+    final darkGreen   = brightGreen.withAlpha((0.4 * 255).round());
+    const sectionBg   = Color(0xFF151515);
 
-    final repo = context.watch<PlaylistRepository>();
+    final repo     = context.watch<PlaylistRepository>();
     final selected = repo.selectedPlaylistId != null
-        ? repo.playlists.firstWhere(
-            (p) => p.id == repo.selectedPlaylistId)
+        ? repo.playlists.firstWhere((p) => p.id == repo.selectedPlaylistId)
         : null;
-    final songs = selected?.songPaths ?? droppedFiles;
+    final songs    = selected?.songPaths ?? droppedFiles;
 
-    final player = context.watch<PlayerModel>();
-    final current = player.currentPath;
+    final player   = context.watch<PlayerModel>();
+    final current  = player.currentPath;
 
     return Container(
       decoration: BoxDecoration(
@@ -71,8 +84,7 @@ class _PlayingSectionState extends State<PlayingSection> {
         ),
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
           Padding(
@@ -93,8 +105,7 @@ class _PlayingSectionState extends State<PlayingSection> {
                     style: TextStyle(
                       color: brightGreen,
                       fontSize: 16,
-                      fontWeight:
-                          FontWeight.bold,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
@@ -108,112 +119,73 @@ class _PlayingSectionState extends State<PlayingSection> {
                 ? Center(
                     child: Text(
                       'Select a playlist to view songs\nOr drag and drop tracks here',
-                      style: TextStyle(
-                          color: brightGreen,
-                          fontSize: 14),
-                      textAlign:
-                          TextAlign.center,
+                      style: TextStyle(color: brightGreen, fontSize: 14),
+                      textAlign: TextAlign.center,
                     ),
                   )
                 : ListView.builder(
                     itemCount: songs.length,
                     itemBuilder: (context, i) {
-                      final track = songs[i];
-                      final title = File(track)
-                          .uri
-                          .pathSegments
-                          .last;
-                      final isCurrent =
-                          track == current;
-                      final isHover =
-                          _hoveredIndex == i;
-                      final count = selected
-                              ?.playCounts[
-                          track] ??
-                          0;
+                      final track     = songs[i];
+                      final title     = File(track).uri.pathSegments.last;
+                      final isCurrent = track == current;
+                      final isHover   = _hoveredIndex == i;
+                      final count     = selected?.playCounts[track] ?? 0;
 
                       return MouseRegion(
                         cursor: SystemMouseCursors.click,
-                        onEnter: (_) =>
-                            setState(() => _hoveredIndex = i),
-                        onExit: (_) =>
-                            setState(() => _hoveredIndex = null),
+                        onEnter: (_) => setState(() => _hoveredIndex = i),
+                        onExit:  (_) => setState(() => _hoveredIndex = null),
                         child: Container(
                           width: double.infinity,
-                          margin:
-                              const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: isCurrent
                               ? BoxDecoration(
                                   color: brightGreen
-                                      .withAlpha(
-                                          (0.15 * 255)
-                                              .round()),
+                                      .withAlpha((0.15 * 255).round()),
                                 )
                               : null,
                           child: ListTile(
-                            // default tile height
                             title: Row(
                               children: [
                                 Expanded(
                                   child: Text(
                                     title,
                                     style: TextStyle(
-                                      color:
-                                          brightGreen,
+                                      color: brightGreen,
                                       fontSize: 14,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(
-                                    width: 8),
+                                const SizedBox(width: 8),
                                 Text(
                                   '(played $count)',
-                                  style:
-                                      TextStyle(
-                                    color: brightGreen
-                                        .withAlpha(
-                                            180),
+                                  style: TextStyle(
+                                    color: brightGreen.withAlpha(180),
                                     fontSize: 14,
                                   ),
                                 ),
                               ],
                             ),
                             onTap: () async {
-                              await context
-                                  .read<
-                                      PlayerModel>()
-                                  .stop();
-                              await context
-                                  .read<
-                                      PlayerModel>()
-                                  .play(track);
+                              await context.read<PlayerModel>().stop();
+                              await context.read<PlayerModel>().play(track);
                             },
                             trailing: isHover
                                 ? InkWell(
                                     onTap: () {
                                       setState(() {
-                                        selected!
-                                            .songPaths
-                                            .removeAt(
-                                                i);
-                                        repo
-                                            .savePlaylists();
-                                        if (track ==
-                                            current) {
-                                          context
-                                              .read<
-                                                  PlayerModel>()
-                                              .stop();
+                                        selected!.songPaths.removeAt(i);
+                                        repo.savePlaylists();
+                                        if (track == current) {
+                                          context.read<PlayerModel>().stop();
                                         }
                                       });
                                     },
                                     child: const Icon(
                                       Icons.close,
-                                      color:
-                                          Colors.red,
+                                      color: Colors.red,
                                       size: 18,
                                     ),
                                   )
