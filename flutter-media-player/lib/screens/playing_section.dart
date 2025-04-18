@@ -96,7 +96,7 @@ class _PlayingSectionState extends State<PlayingSection> {
                 ? Center(
                     child: Text(
                       'Select a playlist to view songs\nOr drag and drop tracks here',
-                      style: TextStyle(color: brightGreen, fontSize: 14),
+                      style: TextStyle(color: brightGreen, fontSize: 10),
                       textAlign: TextAlign.center,
                     ),
                   )

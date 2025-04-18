@@ -1,6 +1,7 @@
 // lib/screens/player_section.dart
 
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -25,8 +26,7 @@ class _PlayerSectionState extends State<PlayerSection> {
   @override
   void initState() {
     super.initState();
-    final player = context.read<PlayerModel>();
-    player.addListener(_onTrackChanged);
+    context.read<PlayerModel>().addListener(_onTrackChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _onTrackChanged());
   }
 
@@ -42,15 +42,12 @@ class _PlayerSectionState extends State<PlayerSection> {
     if (current != null) {
       final dir = File(current).parent;
       try {
-        for (var entity in dir.listSync()) {
-          if (entity is File) {
-            final lower = entity.path.toLowerCase();
-            if (lower.endsWith('.jpg') ||
-                lower.endsWith('.png') ||
-                lower.endsWith('.jpeg')) {
-              found = entity.path;
-              break;
-            }
+        for (var f in dir.listSync()) {
+          if (f is File &&
+              RegExp(r'\.(jpg|png|jpeg)$', caseSensitive: false)
+                  .hasMatch(f.path)) {
+            found = f.path;
+            break;
           }
         }
       } catch (_) {}
@@ -63,17 +60,23 @@ class _PlayerSectionState extends State<PlayerSection> {
     final player = context.read<PlayerModel>();
     final playlistId = repo.selectedPlaylistId;
     if (playlistId == null) return;
-    final playlist = repo.playlists.firstWhere(
-      (p) => p.id == playlistId,
-      orElse: () => Playlist(id: '', name: ''),
-    );
+    final playlist = repo.playlists.firstWhere((p) => p.id == playlistId);
     final songs = playlist.songPaths;
-    final current = player.currentPath;
-    final idx = current != null ? songs.indexOf(current) : -1;
-    if (idx > 0) {
-      await player.stop();
-      await player.play(songs[idx - 1]);
+    if (songs.isEmpty) return;
+
+    String pick;
+    if (_shuffle) {
+      pick = songs[Random().nextInt(songs.length)];
+    } else {
+      final idx = player.currentPath != null
+          ? songs.indexOf(player.currentPath!)
+          : -1;
+      final prevIdx = idx > 0 ? idx - 1 : 0;
+      pick = songs[prevIdx];
     }
+
+    await player.stop();
+    await player.play(pick);
   }
 
   Future<void> _nextTrack() async {
@@ -81,22 +84,32 @@ class _PlayerSectionState extends State<PlayerSection> {
     final player = context.read<PlayerModel>();
     final playlistId = repo.selectedPlaylistId;
     if (playlistId == null) return;
-    final playlist = repo.playlists.firstWhere(
-      (p) => p.id == playlistId,
-      orElse: () => Playlist(id: '', name: ''),
-    );
+    final playlist = repo.playlists.firstWhere((p) => p.id == playlistId);
     final songs = playlist.songPaths;
-    final current = player.currentPath;
-    final idx = current != null ? songs.indexOf(current) : -1;
-    if (idx >= 0 && idx < songs.length - 1) {
-      await player.stop();
-      await player.play(songs[idx + 1]);
+    if (songs.isEmpty) return;
+
+    String pick;
+    if (_shuffle) {
+      pick = songs[Random().nextInt(songs.length)];
+    } else {
+      final idx = player.currentPath != null
+          ? songs.indexOf(player.currentPath!)
+          : -1;
+      final nextIdx =
+          (idx >= 0 && idx < songs.length - 1) ? idx + 1 : songs.length - 1;
+      pick = songs[nextIdx];
     }
+
+    await player.stop();
+    await player.play(pick);
   }
 
   void _rewind10()  => context.read<PlayerModel>().seekRelative(-10);
   void _forward10() => context.read<PlayerModel>().seekRelative(10);
-  void _toggleShuffle() => setState(() => _shuffle = !_shuffle);
+
+  void _toggleShuffle() {
+    setState(() => _shuffle = !_shuffle);
+  }
 
   String get _speakerAsset {
     if (_muted) return 'assets/icons/ph--speaker-x-fill.svg';
@@ -108,8 +121,8 @@ class _PlayerSectionState extends State<PlayerSection> {
 
   void _toggleMute() {
     setState(() => _muted = !_muted);
-    final newVol = _muted ? 0.0 : _volume;
-    context.read<PlayerModel>().setVolume(newVol);
+    final vol = _muted ? 0.0 : _volume;
+    context.read<PlayerModel>().setVolume(vol);
   }
 
   void _onVolumeChanged(double v) {
@@ -132,10 +145,6 @@ class _PlayerSectionState extends State<PlayerSection> {
     final brightGreen = const Color(0xFF00FF00);
     final darkGreen   = brightGreen.withAlpha((0.4 * 255).round());
     final bgColor     = const Color(0xFF151515);
-
-    final playIcon = player.isPlaying
-        ? 'assets/icons/ph--pause-circle-bold.svg'
-        : 'assets/icons/ph--play-circle-bold.svg';
 
     String titleText = player.currentPath != null
         ? File(player.currentPath!).uri.pathSegments.last
@@ -170,7 +179,7 @@ class _PlayerSectionState extends State<PlayerSection> {
           ),
           const SizedBox(width: 16),
 
-          // Track title / info
+          // Track title
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -188,10 +197,8 @@ class _PlayerSectionState extends State<PlayerSection> {
           const SizedBox(width: 24),
 
           // Current time
-          Text(
-            _formatTime(player.position),
-            style: TextStyle(color: brightGreen),
-          ),
+          Text(_formatTime(player.position),
+              style: TextStyle(color: brightGreen)),
           const SizedBox(width: 8),
 
           // Seek bar
@@ -208,13 +215,11 @@ class _PlayerSectionState extends State<PlayerSection> {
           const SizedBox(width: 8),
 
           // Total duration
-          Text(
-            _formatTime(player.duration),
-            style: TextStyle(color: brightGreen),
-          ),
+          Text(_formatTime(player.duration),
+              style: TextStyle(color: brightGreen)),
           const SizedBox(width: 24),
 
-          // Prev / rewind / play-pause / forward / next
+          // Prev / rewind / play/pause / forward / next
           IconButton(
             icon: SvgPicture.asset(
               'assets/icons/ph--skip-back-fill.svg',
@@ -235,12 +240,31 @@ class _PlayerSectionState extends State<PlayerSection> {
           ),
           IconButton(
             icon: SvgPicture.asset(
-              playIcon,
+              player.isPlaying
+                  ? 'assets/icons/ph--pause-circle-bold.svg'
+                  : 'assets/icons/ph--play-circle-bold.svg',
               color: brightGreen,
               width: 32,
               height: 32,
             ),
-            onPressed: () => player.togglePause(),
+            onPressed: () async {
+              if (player.currentPath == null) {
+                // No track loaded: pick first or random
+                final repo = context.read<PlaylistRepository>();
+                final pid = repo.selectedPlaylistId;
+                if (pid != null) {
+                  final pl = repo.playlists.firstWhere((p) => p.id == pid);
+                  if (pl.songPaths.isNotEmpty) {
+                    final pick = _shuffle
+                        ? pl.songPaths[Random().nextInt(pl.songPaths.length)]
+                        : pl.songPaths.first;
+                    await context.read<PlayerModel>().play(pick);
+                  }
+                }
+              } else {
+                await context.read<PlayerModel>().togglePause();
+              }
+            },
           ),
           IconButton(
             icon: SvgPicture.asset(
@@ -263,7 +287,7 @@ class _PlayerSectionState extends State<PlayerSection> {
 
           const SizedBox(width: 16),
 
-          // Shuffle
+          // Shuffle toggle
           IconButton(
             icon: SvgPicture.asset(
               _shuffle
@@ -278,12 +302,13 @@ class _PlayerSectionState extends State<PlayerSection> {
 
           const SizedBox(width: 24),
 
-          // Mute / Volume controls
+          // Mute / volume
           Transform.translate(
             offset: const Offset(8, 0),
             child: IconButton(
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+              constraints:
+                  const BoxConstraints.tightFor(width: 24, height: 24),
               icon: SvgPicture.asset(
                 _speakerAsset,
                 color: brightGreen,
