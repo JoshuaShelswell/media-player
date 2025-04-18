@@ -10,6 +10,7 @@ import '../services/player_model.dart';
 
 class PlayingSection extends StatefulWidget {
   const PlayingSection({super.key});
+
   @override
   State<PlayingSection> createState() => _PlayingSectionState();
 }
@@ -27,7 +28,8 @@ class _PlayingSectionState extends State<PlayingSection> {
     final selected = repo.selectedPlaylistId != null
         ? repo.playlists.firstWhere(
             (p) => p.id == repo.selectedPlaylistId,
-            orElse: () => Playlist(id: '', name: ''))
+            orElse: () => Playlist(id: '', name: ''),
+          )
         : null;
     final songs = selected?.songPaths ?? [];
 
@@ -64,11 +66,14 @@ class _PlayingSectionState extends State<PlayingSection> {
                 color: brightGreen,
               ),
               const SizedBox(width: 8),
-              Text('Now Playing',
-                  style: TextStyle(
-                      color: brightGreen,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold)),
+              Text(
+                'Now Playing',
+                style: TextStyle(
+                  color: brightGreen,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ]),
             const SizedBox(height: 8),
             Expanded(

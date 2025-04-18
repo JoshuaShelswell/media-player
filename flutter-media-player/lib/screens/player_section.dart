@@ -1,7 +1,11 @@
-// lib/screens/playing_section.dart
+// lib/screens/player_section.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:provider/provider.dart';
+
+import '../services/player_model.dart';
+import '../services/playlist_repository.dart';
 
 class PlayerSection extends StatefulWidget {
   const PlayerSection({super.key});
@@ -18,7 +22,6 @@ class PlayerSectionState extends State<PlayerSection> {
   double _volume = 0.75;
   bool _muted = false;
   bool _shuffle = false;
-  bool _playing = false;
 
   String get _speakerAsset {
     if (_muted) return 'assets/icons/ph--speaker-x-fill.svg';
@@ -38,10 +41,40 @@ class PlayerSectionState extends State<PlayerSection> {
   }
 
   void _toggleShuffle() => setState(() => _shuffle = !_shuffle);
-  void _togglePlay() => setState(() => _playing = !_playing);
+
+  Future<void> _onPlayPause() async {
+    final player = context.read<PlayerModel>();
+
+    if (player.isPlaying) {
+      // actually stop the audio
+      await player.stop();
+    } else if (player.currentPath != null) {
+      // resume by replaying the same file
+      await player.play(player.currentPath!);
+    } else {
+      // no track loaded yet: play the first song in the selected playlist
+      final repo = context.read<PlaylistRepository>();
+      final selected = repo.selectedPlaylistId != null
+          ? repo.playlists.firstWhere(
+              (p) => p.id == repo.selectedPlaylistId,
+              orElse: () => Playlist(id: '', name: ''),
+            )
+          : null;
+      final songs = selected?.songPaths ?? [];
+      if (songs.isNotEmpty) {
+        await player.play(songs.first);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final player = context.watch<PlayerModel>();
+    final isPlaying = player.isPlaying;
+    final playAsset = isPlaying
+        ? 'assets/icons/ph--pause-circle-bold.svg'
+        : 'assets/icons/ph--play-circle-bold.svg';
+
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
@@ -69,7 +102,6 @@ class PlayerSectionState extends State<PlayerSection> {
               ),
             ),
           ),
-
           const SizedBox(width: 16),
 
           // Track info
@@ -87,7 +119,7 @@ class PlayerSectionState extends State<PlayerSection> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Example Track – Artist Name',
+                'Example Track – Artist Name',
                 style: TextStyle(
                   color: brightGreen.withAlpha((0.8 * 255).round()),
                   fontSize: 14,
@@ -95,10 +127,9 @@ class PlayerSectionState extends State<PlayerSection> {
               ),
             ],
           ),
-
           const SizedBox(width: 24),
 
-          // Progress bar inline
+          // Progress display
           Text('0:00', style: TextStyle(color: brightGreen)),
           const SizedBox(width: 8),
           Expanded(
@@ -111,10 +142,9 @@ class PlayerSectionState extends State<PlayerSection> {
           ),
           const SizedBox(width: 8),
           Text('3:45', style: TextStyle(color: brightGreen)),
-
           const SizedBox(width: 24),
 
-          // Playback controls + shuffle
+          // Skip / rewind
           IconButton(
             icon: SvgPicture.asset(
               'assets/icons/ph--skip-back-fill.svg',
@@ -133,17 +163,19 @@ class PlayerSectionState extends State<PlayerSection> {
             ),
             onPressed: () {},
           ),
+
+          // Play / Pause
           IconButton(
             icon: SvgPicture.asset(
-              _playing
-                  ? 'assets/icons/ph--pause-circle-bold.svg'
-                  : 'assets/icons/ph--play-circle-bold.svg',
+              playAsset,
               color: brightGreen,
               width: 32,
               height: 32,
             ),
-            onPressed: _togglePlay,
+            onPressed: _onPlayPause,
           ),
+
+          // Fast‑forward / skip
           IconButton(
             icon: SvgPicture.asset(
               'assets/icons/ph--fast-forward-fill.svg',
@@ -162,6 +194,8 @@ class PlayerSectionState extends State<PlayerSection> {
             ),
             onPressed: () {},
           ),
+
+          // Shuffle
           IconButton(
             icon: SvgPicture.asset(
               _shuffle
@@ -173,11 +207,9 @@ class PlayerSectionState extends State<PlayerSection> {
             ),
             onPressed: _toggleShuffle,
           ),
-
-          // Push volume controls to the right
           const SizedBox(width: 24),
 
-          // Volume icon nudged 8px right to hug the slider
+          // Volume icon
           Transform.translate(
             offset: const Offset(8, 0),
             child: IconButton(

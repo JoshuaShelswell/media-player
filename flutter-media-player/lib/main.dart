@@ -1,6 +1,7 @@
 // lib/main.dart
 
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 import 'screens/media_player_screen.dart';
 import 'services/playlist_repository.dart';
 import 'services/player_model.dart';
+import 'services/audio_player.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +21,8 @@ Future<void> main() async {
   final posX = prefs.getDouble('windowPosX') ?? 100.0;
   final posY = prefs.getDouble('windowPosY') ?? 100.0;
   await windowManager.setPosition(Offset(posX, posY));
+
+  // Listen for the window close to stop audio
   windowManager.addListener(MyWindowListener());
 
   runApp(const MyMediaPlayerApp());
@@ -27,18 +31,14 @@ Future<void> main() async {
 class MyWindowListener extends WindowListener {
   @override
   void onWindowClose() async {
+    // Save window position
     final p = await windowManager.getPosition();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('windowPosX', p.dx);
     await prefs.setDouble('windowPosY', p.dy);
-  }
 
-  @override
-  void onWindowMove() async {
-    final p = await windowManager.getPosition();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('windowPosX', p.dx);
-    await prefs.setDouble('windowPosY', p.dy);
+    // Stop any playing audio before the window fully closes
+    await AudioPlayer.instance.stop();
   }
 }
 
@@ -67,6 +67,8 @@ class _MyMediaPlayerAppState extends State<MyMediaPlayerApp>
 
   @override
   void dispose() {
+    // stop audio if the app/widget tree is disposed
+    AudioPlayer.instance.stop();
     windowManager.removeListener(this);
     _timer?.cancel();
     super.dispose();
@@ -82,7 +84,9 @@ class _MyMediaPlayerAppState extends State<MyMediaPlayerApp>
       child: MaterialApp(
         title: 'Amped',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: Colors.black),
+        theme: ThemeData.dark().copyWith(
+          scaffoldBackgroundColor: Colors.black,
+        ),
         home: const MediaPlayerScreen(),
       ),
     );
