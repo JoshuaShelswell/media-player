@@ -1,5 +1,7 @@
 // lib/screens/player_section.dart
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
@@ -11,18 +13,52 @@ class PlayerSection extends StatefulWidget {
   const PlayerSection({super.key});
 
   @override
-  State<PlayerSection> createState() => PlayerSectionState();
+  State<PlayerSection> createState() => _PlayerSectionState();
 }
 
-class PlayerSectionState extends State<PlayerSection> {
-  final Color brightGreen = const Color(0xFF00FF00);
-  late final Color darkGreen =
-      brightGreen.withAlpha((0.4 * 255).round());
-  final Color bgColor = const Color(0xFF151515);
-
+class _PlayerSectionState extends State<PlayerSection> {
   double _volume = 0.75;
   bool _muted = false;
   bool _shuffle = false;
+  String? _albumArtPath;
+
+  @override
+  void initState() {
+    super.initState();
+    final player = context.read<PlayerModel>();
+    player.addListener(_onTrackChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onTrackChanged());
+  }
+
+  @override
+  void dispose() {
+    context.read<PlayerModel>().removeListener(_onTrackChanged);
+    super.dispose();
+  }
+
+  void _onTrackChanged() {
+    final current = context.read<PlayerModel>().currentPath;
+    String? found;
+    if (current != null) {
+      final dir = File(current).parent;
+      try {
+        for (var entity in dir.listSync()) {
+          if (entity is File) {
+            final lower = entity.path.toLowerCase();
+            if (lower.endsWith('.jpg') ||
+                lower.endsWith('.png') ||
+                lower.endsWith('.jpeg')) {
+              found = entity.path;
+              break;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    setState(() {
+      _albumArtPath = found;
+    });
+  }
 
   String get _speakerAsset {
     if (_muted) return 'assets/icons/ph--speaker-x-fill.svg';
@@ -33,6 +69,7 @@ class PlayerSectionState extends State<PlayerSection> {
   }
 
   void _toggleMute() => setState(() => _muted = !_muted);
+
   void _onVolumeChanged(double val) {
     setState(() {
       _volume = val;
@@ -43,30 +80,45 @@ class PlayerSectionState extends State<PlayerSection> {
   void _toggleShuffle() => setState(() => _shuffle = !_shuffle);
 
   String _formatTime(double seconds) {
-    final minutes = seconds ~/ 60;
-    final secs = (seconds % 60).toInt().toString().padLeft(2, '0');
-    return '$minutes:$secs';
+    final m = seconds ~/ 60;
+    final s = (seconds % 60).toInt().toString().padLeft(2, '0');
+    return '$m:$s';
   }
 
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerModel>();
-    final isPlaying = player.isPlaying;
-    final playAsset = isPlaying
+    final currentPath = player.currentPath;
+
+    // Determine title & subtitle
+    String titleText;
+    String subtitleText = '';
+    if (currentPath != null) {
+      final fileName = File(currentPath).uri.pathSegments.last;
+      titleText = fileName;
+    } else {
+      titleText = 'Media Player';
+      subtitleText = 'Example Track – Artist Name';
+    }
+
+    final brightGreen = const Color(0xFF00FF00);
+    final darkGreen = brightGreen.withAlpha((0.4 * 255).round());
+    final bgColor = const Color(0xFF151515);
+
+    // Play/Pause icon asset
+    final playAsset = player.isPlaying
         ? 'assets/icons/ph--pause-circle-bold.svg'
         : 'assets/icons/ph--play-circle-bold.svg';
 
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
-        border: Border(
-          bottom: BorderSide(color: darkGreen, width: 2),
-        ),
+        border: Border(bottom: BorderSide(color: darkGreen, width: 2)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          // Album art placeholder
+          // Album art or placeholder
           Container(
             width: 60,
             height: 60,
@@ -74,14 +126,24 @@ class PlayerSectionState extends State<PlayerSection> {
               color: const Color(0xFF1F1F1F),
               border: Border.all(color: darkGreen, width: 2),
             ),
-            child: Center(
-              child: SvgPicture.asset(
-                'assets/icons/ph--music-notes-fill.svg',
-                color: brightGreen.withAlpha((0.5 * 255).round()),
-                width: 32,
-                height: 32,
-              ),
-            ),
+            child: _albumArtPath != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.file(
+                      File(_albumArtPath!),
+                      fit: BoxFit.cover,
+                      width: 60,
+                      height: 60,
+                    ),
+                  )
+                : Center(
+                    child: SvgPicture.asset(
+                      'assets/icons/ph--music-notes-fill.svg',
+                      color: brightGreen.withAlpha((0.5 * 255).round()),
+                      width: 32,
+                      height: 32,
+                    ),
+                  ),
           ),
           const SizedBox(width: 16),
 
@@ -91,21 +153,23 @@ class PlayerSectionState extends State<PlayerSection> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Media Player',
+                titleText,
                 style: TextStyle(
                   color: brightGreen,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Example Track – Artist Name',
-                style: TextStyle(
-                  color: brightGreen.withAlpha((0.8 * 255).round()),
-                  fontSize: 14,
+              if (subtitleText.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitleText,
+                  style: TextStyle(
+                    color: brightGreen.withAlpha((0.8 * 255).round()),
+                    fontSize: 14,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
           const SizedBox(width: 24),
@@ -124,10 +188,8 @@ class PlayerSectionState extends State<PlayerSection> {
               inactiveColor: darkGreen,
               min: 0,
               max: player.duration > 0 ? player.duration : 1,
-              value: player.position.clamp(0, player.duration > 0 ? player.duration : 1),
-              onChanged: (_) {
-                // seeking not implemented yet
-              },
+              value: player.position.clamp(0, player.duration),
+              onChanged: (_) {},
             ),
           ),
           const SizedBox(width: 8),
@@ -139,7 +201,7 @@ class PlayerSectionState extends State<PlayerSection> {
           ),
           const SizedBox(width: 24),
 
-          // Skip back / rewind
+          // Playback controls
           IconButton(
             icon: SvgPicture.asset(
               'assets/icons/ph--skip-back-fill.svg',
@@ -147,7 +209,7 @@ class PlayerSectionState extends State<PlayerSection> {
               width: 24,
               height: 24,
             ),
-            onPressed: () {}, // implement skip-back if desired
+            onPressed: () {},
           ),
           IconButton(
             icon: SvgPicture.asset(
@@ -156,10 +218,8 @@ class PlayerSectionState extends State<PlayerSection> {
               width: 24,
               height: 24,
             ),
-            onPressed: () {}, // implement rewind if desired
+            onPressed: () {},
           ),
-
-          // Play / Pause
           IconButton(
             icon: SvgPicture.asset(
               playAsset,
@@ -167,10 +227,8 @@ class PlayerSectionState extends State<PlayerSection> {
               width: 32,
               height: 32,
             ),
-            onPressed: () => context.read<PlayerModel>().togglePause(),
+            onPressed: () => player.togglePause(),
           ),
-
-          // Fast-forward / skip forward
           IconButton(
             icon: SvgPicture.asset(
               'assets/icons/ph--fast-forward-fill.svg',
@@ -178,7 +236,7 @@ class PlayerSectionState extends State<PlayerSection> {
               width: 24,
               height: 24,
             ),
-            onPressed: () {}, // implement fast-forward if desired
+            onPressed: () {},
           ),
           IconButton(
             icon: SvgPicture.asset(
@@ -187,7 +245,7 @@ class PlayerSectionState extends State<PlayerSection> {
               width: 24,
               height: 24,
             ),
-            onPressed: () {}, // implement skip-forward if desired
+            onPressed: () {},
           ),
 
           const SizedBox(width: 16),
@@ -211,8 +269,7 @@ class PlayerSectionState extends State<PlayerSection> {
             offset: const Offset(8, 0),
             child: IconButton(
               padding: EdgeInsets.zero,
-              constraints:
-                  const BoxConstraints.tightFor(width: 24, height: 24),
+              constraints: const BoxConstraints.tightFor(width: 24, height: 24),
               icon: SvgPicture.asset(
                 _speakerAsset,
                 color: brightGreen,
