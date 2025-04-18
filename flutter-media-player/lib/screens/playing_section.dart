@@ -1,5 +1,7 @@
 // lib/screens/playing_section.dart
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -9,7 +11,7 @@ import '../services/playlist_repository.dart';
 import '../services/player_model.dart';
 
 class PlayingSection extends StatefulWidget {
-  const PlayingSection({super.key});
+  const PlayingSection({Key? key}) : super(key: key);
 
   @override
   State<PlayingSection> createState() => _PlayingSectionState();
@@ -17,6 +19,7 @@ class PlayingSection extends StatefulWidget {
 
 class _PlayingSectionState extends State<PlayingSection> {
   List<String> droppedFiles = [];
+  int? _hoveredIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +35,9 @@ class _PlayingSectionState extends State<PlayingSection> {
           )
         : null;
     final songs = selected?.songPaths ?? [];
+
+    final player = context.watch<PlayerModel>();
+    final current = player.currentPath;
 
     return DropTarget(
       onDragDone: (details) {
@@ -54,28 +60,35 @@ class _PlayingSectionState extends State<PlayingSection> {
             right: BorderSide(color: darkGreen, width: 2),
           ),
         ),
-        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              SvgPicture.asset(
-                'assets/icons/ph--music-notes-fill.svg',
-                width: 20,
-                height: 20,
-                color: brightGreen,
+            // Header with consistent padding
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Row(
+                children: [
+                  SvgPicture.asset(
+                    'assets/icons/ph--music-notes-fill.svg',
+                    width: 20,
+                    height: 20,
+                    color: brightGreen,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Now Playing',
+                    style: TextStyle(
+                      color: brightGreen,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Now Playing',
-                style: TextStyle(
-                  color: brightGreen,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ]),
+            ),
             const SizedBox(height: 8),
+
+            // Track list
             Expanded(
               child: (songs.isEmpty && droppedFiles.isEmpty)
                   ? Center(
@@ -89,24 +102,60 @@ class _PlayingSectionState extends State<PlayingSection> {
                       itemCount: songs.isNotEmpty
                           ? songs.length
                           : droppedFiles.length,
-                      itemBuilder: (_, i) {
-                        final track = songs.isNotEmpty
-                            ? songs[i]
-                            : droppedFiles[i];
+                      itemBuilder: (context, i) {
+                        final track =
+                            songs.isNotEmpty ? songs[i] : droppedFiles[i];
+                        // Only show the file name
+                        final title = File(track).uri.pathSegments.last;
+
+                        final isCurrent = track == current;
+                        final isHover = _hoveredIndex == i;
+
                         return MouseRegion(
                           cursor: SystemMouseCursors.click,
-                          child: ListTile(
-                            title: Text(
-                              track,
-                              style: TextStyle(color: brightGreen),
+                          onEnter: (_) => setState(() => _hoveredIndex = i),
+                          onExit: (_) => setState(() => _hoveredIndex = null),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: isCurrent
+                                ? BoxDecoration(
+                                    color: brightGreen
+                                        .withAlpha((0.15 * 255).round()),
+                                  )
+                                : null,
+                            child: ListTile(
+                              title: Text(
+                                title,
+                                style: TextStyle(color: brightGreen),
+                              ),
+                              onTap: () =>
+                                  context.read<PlayerModel>().play(track),
+                              trailing: isHover
+                                  ? InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          if (songs.isNotEmpty) {
+                                            selected!.songPaths.removeAt(i);
+                                            repo.savePlaylists();
+                                            if (track == current) {
+                                              context
+                                                  .read<PlayerModel>()
+                                                  .stop();
+                                            }
+                                          } else {
+                                            droppedFiles.removeAt(i);
+                                          }
+                                        });
+                                      },
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.red,
+                                        size: 18,
+                                      ),
+                                    )
+                                  : null,
                             ),
-                            onTap: () async {
-                              final player =
-                                  context.read<PlayerModel>();
-                              // stop any current playback before starting new
-                              await player.stop();
-                              await player.play(track);
-                            },
                           ),
                         );
                       },
