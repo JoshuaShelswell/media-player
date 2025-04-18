@@ -1,8 +1,9 @@
 // lib/services/player_model.dart
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'audio_player.dart';
 
+/// Exposes play/pause/stop/seek for UI via ChangeNotifier.
 class PlayerModel extends ChangeNotifier {
   final AudioPlayer _audio = AudioPlayer.instance;
 
@@ -18,6 +19,7 @@ class PlayerModel extends ChangeNotifier {
   @override
   void dispose() {
     _audio.removeListener(notifyListeners);
+    // ensure we clean up the native isolate if this model is torn down
     _audio.stop();
     super.dispose();
   }
@@ -27,4 +29,10 @@ class PlayerModel extends ChangeNotifier {
   Future<void> resume()              => _audio.resume();
   Future<void> togglePause()         => _audio.togglePause();
   Future<void> stop()                => _audio.stop();
+
+  /// Seek forward/backward by [seconds].
+  /// TODO: wire this up to a `seek_audio` FFI call when available.
+  Future<void> seekRelative(double seconds) async {
+    debugPrint('Seek request: $seconds seconds');
+  }
 }
