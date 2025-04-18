@@ -1,3 +1,5 @@
+// lib/services/playlist_repository.dart
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -5,15 +7,15 @@ import 'package:path_provider/path_provider.dart';
 
 class Playlist {
   final String id;
-  final String name;
+  String name;                     // ← made mutable
   List<String> songPaths;
-  Map<String, int> playCounts;
-
+  Map<String,int> playCounts;
+  
   Playlist({
     required this.id,
     required this.name,
     List<String>? songPaths,
-    Map<String, int>? playCounts,
+    Map<String,int>? playCounts,
   })  : songPaths = songPaths ?? [],
         playCounts = playCounts ?? {};
 
@@ -24,14 +26,13 @@ class Playlist {
         'playCounts': playCounts,
       };
 
-  factory Playlist.fromJson(Map<String, dynamic> json) {
-    return Playlist(
-      id: json['id'],
-      name: json['name'],
-      songPaths: List<String>.from(json['songPaths'] ?? []),
-      playCounts: Map<String, int>.from(json['playCounts'] ?? {}),
-    );
-  }
+  factory Playlist.fromJson(Map json) => Playlist(
+        id: json['id'],
+        name: json['name'],
+        songPaths: List<String>.from(json['songPaths'] ?? []),
+        playCounts:
+            Map<String, int>.from(json['playCounts'] ?? <String, int>{}),
+      );
 }
 
 class PlaylistRepository extends ChangeNotifier {
@@ -54,40 +55,39 @@ class PlaylistRepository extends ChangeNotifier {
 
   Future<void> loadPlaylists() async {
     try {
-      final file = await _localFile;
-      if (await file.exists()) {
-        final contents = await file.readAsString();
-        final List data = json.decode(contents);
+      final f = await _localFile;
+      if (await f.exists()) {
+        final data = json.decode(await f.readAsString()) as List;
         _playlists
           ..clear()
-          ..addAll(data.map((j) => Playlist.fromJson(j)));
+          ..addAll(data.map((e) => Playlist.fromJson(e)));
         if (_playlists.isNotEmpty) {
           _selectedPlaylistId = _playlists.first.id;
         }
         notifyListeners();
       }
     } catch (e) {
-      debugPrint("Error loading playlists: $e");
+      debugPrint('Error loading playlists: $e');
     }
   }
 
   Future<void> savePlaylists() async {
     try {
-      final file = await _localFile;
+      final f = await _localFile;
       final data = _playlists.map((p) => p.toJson()).toList();
-      await file.writeAsString(json.encode(data));
+      await f.writeAsString(json.encode(data));
     } catch (e) {
-      debugPrint("Error saving playlists: $e");
+      debugPrint('Error saving playlists: $e');
     }
   }
 
   void addPlaylist(String name) {
-    final newP = Playlist(
+    final p = Playlist(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: name,
     );
-    _playlists.add(newP);
-    _selectedPlaylistId = newP.id;
+    _playlists.add(p);
+    _selectedPlaylistId = p.id;
     notifyListeners();
     savePlaylists();
   }
@@ -107,24 +107,29 @@ class PlaylistRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addSongToSelectedPlaylist(String songPath) {
-    if (_selectedPlaylistId == null) return;
-    final p = _playlists.firstWhere(
-        (p) => p.id == _selectedPlaylistId,
-        orElse: () => throw StateError('No playlist'));
-    p.songPaths.add(songPath);
-    p.playCounts[songPath] = 0;                // initialize count
+  /// ← New:
+  void renamePlaylist(String id, String newName) {
+    final p = _playlists.firstWhere((p) => p.id == id);
+    p.name = newName;
     notifyListeners();
     savePlaylists();
   }
 
-  /// Increment the play count for [songPath] in the selected playlist.
-  void incrementPlayCount(String songPath) {
+  void incrementPlayCount(String path) {
     if (_selectedPlaylistId == null) return;
-    final p = _playlists.firstWhere(
-        (p) => p.id == _selectedPlaylistId,
-        orElse: () => throw StateError('No playlist'));
-    p.playCounts[songPath] = (p.playCounts[songPath] ?? 0) + 1;
+    final pl =
+        _playlists.firstWhere((p) => p.id == _selectedPlaylistId!);
+    pl.playCounts[path] = (pl.playCounts[path] ?? 0) + 1;
+    savePlaylists();
+    notifyListeners();
+  }
+
+  void addSongToSelectedPlaylist(String path) {
+    if (_selectedPlaylistId == null) return;
+    final pl =
+        _playlists.firstWhere((p) => p.id == _selectedPlaylistId!);
+    pl.songPaths.add(path);
+    pl.playCounts[path] = pl.playCounts[path] ?? 0;
     notifyListeners();
     savePlaylists();
   }

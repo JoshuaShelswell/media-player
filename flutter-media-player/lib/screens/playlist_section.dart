@@ -7,7 +7,6 @@ import '../services/playlist_repository.dart';
 
 class PlaylistSection extends StatefulWidget {
   const PlaylistSection({super.key});
-
   @override
   State<PlaylistSection> createState() => _PlaylistSectionState();
 }
@@ -16,7 +15,8 @@ class _PlaylistSectionState extends State<PlaylistSection> {
   final TextEditingController _playlistController = TextEditingController();
 
   static const Color brightGreen = Color(0xFF00FF00);
-  late final Color darkGreen = brightGreen.withAlpha((0.4 * 255).round());
+  late final Color darkGreen =
+      brightGreen.withAlpha((0.4 * 255).round());
   static const Color sectionBg = Color(0xFF151515);
 
   @override
@@ -31,31 +31,29 @@ class _PlaylistSectionState extends State<PlaylistSection> {
       color: sectionBg,
       child: Column(
         children: [
-          // Header
+          // header
           Padding(
             padding: const EdgeInsets.all(10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    SvgPicture.asset(
-                      'assets/icons/ph--files-fill.svg',
-                      width: 20,
-                      height: 20,
+                Row(children: [
+                  SvgPicture.asset(
+                    'assets/icons/ph--files-fill.svg',
+                    width: 20,
+                    height: 20,
+                    color: brightGreen,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Playlists',
+                    style: TextStyle(
                       color: brightGreen,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Playlists',
-                      style: TextStyle(
-                        color: brightGreen,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ]),
                 IconButton(
                   icon: const Icon(Icons.add),
                   color: brightGreen,
@@ -65,37 +63,33 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                       context: context,
                       builder: (ctx) => AlertDialog(
                         backgroundColor: Colors.black,
-                        title: const Text(
-                          'Add Playlist',
-                          style: TextStyle(color: brightGreen),
-                        ),
+                        title: const Text('Add Playlist',
+                            style: TextStyle(color: brightGreen)),
                         content: TextField(
                           controller: _playlistController,
                           style: const TextStyle(color: brightGreen),
                           decoration: InputDecoration(
                             hintText: 'Playlist name',
                             hintStyle: TextStyle(
-                              color: brightGreen.withAlpha((0.7 * 255).round()),
+                              color:
+                                  brightGreen.withAlpha((0.7 * 255).round()),
                             ),
                           ),
                         ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(color: brightGreen),
-                            ),
+                            child: const Text('Cancel',
+                                style: TextStyle(color: brightGreen)),
                           ),
                           TextButton(
                             onPressed: () {
-                              final txt = _playlistController.text.trim();
+                              final txt =
+                                  _playlistController.text.trim();
                               Navigator.pop(ctx, txt);
                             },
-                            child: const Text(
-                              'Add',
-                              style: TextStyle(color: brightGreen),
-                            ),
+                            child: const Text('Add',
+                                style: TextStyle(color: brightGreen)),
                           ),
                         ],
                       ),
@@ -110,7 +104,7 @@ class _PlaylistSectionState extends State<PlaylistSection> {
             ),
           ),
 
-          // Playlist list
+          // playlist list
           Expanded(
             child: Consumer<PlaylistRepository>(
               builder: (context, repo, _) {
@@ -118,8 +112,10 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                   itemCount: repo.playlists.length,
                   itemBuilder: (context, index) {
                     final pl = repo.playlists[index];
-                    final sel = repo.selectedPlaylistId == pl.id;
-                    return _PlaylistTile(playlist: pl, selected: sel);
+                    final sel =
+                        repo.selectedPlaylistId == pl.id;
+                    return _PlaylistTile(
+                        playlist: pl, selected: sel);
                   },
                 );
               },
@@ -133,43 +129,93 @@ class _PlaylistSectionState extends State<PlaylistSection> {
 
 class _PlaylistTile extends StatefulWidget {
   final Playlist playlist;
-  final bool     selected;
-  const _PlaylistTile({required this.playlist, required this.selected});
-
+  final bool selected;
+  const _PlaylistTile({
+    required this.playlist,
+    required this.selected,
+  });
   @override
   State<_PlaylistTile> createState() => __PlaylistTileState();
 }
 
 class __PlaylistTileState extends State<_PlaylistTile> {
   bool _hovering = false;
+  bool _editing = false;
+  late TextEditingController _editController;
+
   static const Color brightGreen = Color(0xFF00FF00);
 
   @override
+  void initState() {
+    super.initState();
+    _editController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _editController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final repo = context.read<PlaylistRepository>();
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
-      onExit:  (_) => setState(() => _hovering = false),
+      onExit: (_) => setState(() => _hovering = false),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        margin:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: widget.selected
             ? BoxDecoration(
                 color: brightGreen.withAlpha((0.15 * 255).round()))
             : null,
-        child: ListTile(
-          title: Text(widget.playlist.name,
-              style: const TextStyle(color: brightGreen)),
-          trailing: _hovering
-              ? InkWell(
-                  onTap: () => context
-                      .read<PlaylistRepository>()
-                      .deletePlaylist(widget.playlist.id),
-                  child:
-                      const Icon(Icons.close, color: Colors.red, size: 18),
-                )
-              : null,
-          onTap: () => context
-              .read<PlaylistRepository>()
-              .selectPlaylist(widget.playlist.id),
+        child: GestureDetector(
+          onDoubleTap: () {
+            setState(() {
+              _editing = true;
+              _editController.text = widget.playlist.name;
+            });
+          },
+          child: ListTile(
+            title: _editing
+                ? TextField(
+                    controller: _editController,
+                    autofocus: true,
+                    style:
+                        const TextStyle(color: brightGreen),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (val) {
+                      final newName = val.trim();
+                      if (newName.isNotEmpty) {
+                        repo.renamePlaylist(
+                            widget.playlist.id, newName);
+                      }
+                      setState(() => _editing = false);
+                    },
+                  )
+                : Text(widget.playlist.name,
+                    style: const TextStyle(
+                        color: brightGreen)),
+            trailing: _hovering && !_editing
+                ? InkWell(
+                    onTap: () =>
+                        repo.deletePlaylist(widget.playlist.id),
+                    child: const Icon(Icons.close,
+                        color: Colors.red, size: 18),
+                  )
+                : null,
+            onTap: () {
+              if (!_editing) {
+                repo.selectPlaylist(widget.playlist.id);
+              }
+            },
+          ),
         ),
       ),
     );
