@@ -18,7 +18,6 @@ class _LibrarySectionState extends State<LibrarySection> {
   final TextEditingController _searchController = TextEditingController();
   bool _gridView = true;
 
-  // current folder and its files
   String? _currentFolder;
   List<_LibraryFile> _files = [];
 
@@ -27,11 +26,12 @@ class _LibrarySectionState extends State<LibrarySection> {
       brightGreen.withAlpha((0.4 * 255).round());
   static const Color sectionBg = Color(0xFF1F1F1F);
 
-  // grid configuration
-  static const double _itemSize = 80;
-  static const double _spacing  = 20;
-  static const int    _columns  = 4;
-  static const int    _rows     = 4;
+  // grid config
+  static const double _itemSize     = 80;
+  static const double _spacingFull  = 20;
+  static const double _spacing      = _spacingFull / 2; // now 10px
+  static const int    _columns      = 4;
+  static const int    _placeholderRows = 4;
 
   @override
   void dispose() {
@@ -44,7 +44,7 @@ class _LibrarySectionState extends State<LibrarySection> {
     if (folder == null) return;
 
     final dir = Directory(folder);
-    // find a thumbnail image in the folder root
+    // find a thumbnail image
     String? thumb;
     for (var ent in dir.listSync()) {
       if (ent is File) {
@@ -58,7 +58,7 @@ class _LibrarySectionState extends State<LibrarySection> {
       }
     }
 
-    // gather audio files
+    // collect audio files
     final exts = {
       '.mp3', '.aac', '.flac', '.wav',
       '.ogg', '.m4a', '.wma', '.alac', '.opus'
@@ -66,7 +66,9 @@ class _LibrarySectionState extends State<LibrarySection> {
     final files = <_LibraryFile>[];
     for (var ent in dir.listSync()) {
       if (ent is File) {
-        final ext = ent.path.toLowerCase().substring(ent.path.lastIndexOf('.'));
+        final ext = ent.path
+            .toLowerCase()
+            .substring(ent.path.lastIndexOf('.'));
         if (exts.contains(ext)) {
           final title = ent.uri.pathSegments.last;
           files.add(_LibraryFile(ent.path, title, thumb));
@@ -82,37 +84,44 @@ class _LibrarySectionState extends State<LibrarySection> {
 
   @override
   Widget build(BuildContext context) {
-    // compute wrap width
-    final wrapWidth = _columns * _itemSize + (_columns - 1) * _spacing;
-    // total slots to show
-    final totalItems = _columns * _rows;
+    // compute total width of the fixed‐width grid container
+    final wrapWidth =
+        _columns * _itemSize + (_columns - 1) * _spacing;
+    // placeholder count: 4 columns × 4 rows = 16
+    final placeholderCount = _columns * _placeholderRows;
 
     return Container(
       color: sectionBg,
       padding: const EdgeInsets.all(10),
       child: Column(
         children: [
-          // Top header row (arrows, search, toggle)
+          // — Header row — back / forward / up / search / toggle
           Row(
             children: [
               IconButton(
                 icon: SvgPicture.asset(
                   'assets/icons/ph--arrow-left-bold.svg',
-                  width: 20, height: 20, color: brightGreen,
+                  width: 20,
+                  height: 20,
+                  color: brightGreen,
                 ),
                 onPressed: () {},
               ),
               IconButton(
                 icon: SvgPicture.asset(
                   'assets/icons/ph--arrow-right-bold.svg',
-                  width: 20, height: 20, color: brightGreen,
+                  width: 20,
+                  height: 20,
+                  color: brightGreen,
                 ),
                 onPressed: () {},
               ),
               IconButton(
                 icon: SvgPicture.asset(
                   'assets/icons/ph--arrow-up-bold.svg',
-                  width: 20, height: 20, color: brightGreen,
+                  width: 20,
+                  height: 20,
+                  color: brightGreen,
                 ),
                 onPressed: () {},
               ),
@@ -123,8 +132,8 @@ class _LibrarySectionState extends State<LibrarySection> {
                   style: const TextStyle(color: brightGreen),
                   decoration: InputDecoration(
                     isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 6),
                     filled: true,
                     fillColor: const Color(0xFF151515),
                     hintText: 'Search Library…',
@@ -148,14 +157,18 @@ class _LibrarySectionState extends State<LibrarySection> {
               IconButton(
                 icon: SvgPicture.asset(
                   'assets/icons/ph--grid-nine-fill.svg',
-                  width: 20, height: 20, color: brightGreen,
+                  width: 20,
+                  height: 20,
+                  color: brightGreen,
                 ),
                 onPressed: () => setState(() => _gridView = true),
               ),
               IconButton(
                 icon: SvgPicture.asset(
                   'assets/icons/ph--list-bullets-fill.svg',
-                  width: 20, height: 20, color: brightGreen,
+                  width: 20,
+                  height: 20,
+                  color: brightGreen,
                 ),
                 onPressed: () => setState(() => _gridView = false),
               ),
@@ -164,7 +177,7 @@ class _LibrarySectionState extends State<LibrarySection> {
 
           const SizedBox(height: 12),
 
-          // Main content: grid or list
+          // — Main content —
           Expanded(
             child: _gridView
                 ? SingleChildScrollView(
@@ -172,90 +185,22 @@ class _LibrarySectionState extends State<LibrarySection> {
                       child: SizedBox(
                         width: wrapWidth,
                         child: Padding(
-                          // move grid down by half an item
-                          padding: const EdgeInsets.only(top: _itemSize / 2),
+                          // shift grid down half‐box
+                          padding: const EdgeInsets.only(
+                              top: _itemSize / 2),
                           child: Wrap(
                             spacing: _spacing,
                             runSpacing: _spacing,
-                            children: List.generate(totalItems, (i) {
-                              // if no folder selected: show placeholder icon only
-                              if (_currentFolder == null) {
-                                return Container(
-                                  width: _itemSize,
-                                  height: _itemSize,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF151515),
-                                    border: Border.all(
-                                        color: darkGreen, width: 1.5),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Center(
-                                    child: SvgPicture.asset(
-                                      'assets/icons/ph--music-notes-fill.svg',
-                                      width: 24,
-                                      height: 24,
-                                      color: brightGreen.withAlpha(128),
-                                    ),
-                                  ),
-                                );
-                              }
-
-                              // folder selected: show actual files
-                              if (i < _files.length) {
-                                final f = _files[i];
-                                return Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: _itemSize,
-                                      height: _itemSize,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF151515),
-                                        border: Border.all(
-                                            color: darkGreen, width: 1.5),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      clipBehavior: Clip.hardEdge,
-                                      child: f.thumbnail != null
-                                          ? Image.file(
-                                              File(f.thumbnail!),
-                                              fit: BoxFit.cover,
-                                              width: _itemSize,
-                                              height: _itemSize,
-                                            )
-                                          : Center(
-                                              child: SvgPicture.asset(
-                                                'assets/icons/ph--music-notes-fill.svg',
-                                                width: 24,
-                                                height: 24,
-                                                color: brightGreen
-                                                    .withAlpha(128),
-                                              ),
-                                            ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    SizedBox(
-                                      width: _itemSize,
-                                      child: Text(
-                                        f.title,
-                                        style: TextStyle(
-                                            color: brightGreen,
-                                            fontSize: 12),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              }
-
-                              // empty slot beyond file count
-                              return SizedBox(
-                                width: _itemSize,
-                                height: _itemSize + 20,
-                              );
-                            }),
+                            children: (_currentFolder == null
+                                ? List.generate(
+                                    placeholderCount,
+                                    (_) => _buildPlaceholderBox(
+                                        darkGreen, brightGreen),
+                                  )
+                                : _files
+                                    .map((f) =>
+                                        _buildFileBox(f, darkGreen))
+                                    .toList()),
                           ),
                         ),
                       ),
@@ -267,8 +212,8 @@ class _LibrarySectionState extends State<LibrarySection> {
                       Center(
                         child: Text(
                           'List view coming soon…',
-                          style:
-                              TextStyle(color: brightGreen, fontSize: 14),
+                          style: TextStyle(
+                              color: brightGreen, fontSize: 14),
                         ),
                       ),
                     ],
@@ -277,19 +222,21 @@ class _LibrarySectionState extends State<LibrarySection> {
 
           const SizedBox(height: 12),
 
-          // Add Folder button
+          // — Add Folder button —
           Center(
             child: InkWell(
               onTap: _pickFolder,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                padding: const EdgeInsets.symmetric(
+                    vertical: 8, horizontal: 12),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SvgPicture.asset(
                       'assets/icons/ph--folder-plus-fill.svg',
-                      width: 24, height: 24, color: brightGreen,
+                      width: 24,
+                      height: 24,
+                      color: brightGreen,
                     ),
                     const SizedBox(width: 8),
                     const Text(
@@ -308,9 +255,72 @@ class _LibrarySectionState extends State<LibrarySection> {
       ),
     );
   }
+
+  /// Placeholder box
+  Widget _buildPlaceholderBox(Color border, Color fg) {
+    return Container(
+      width: _itemSize,
+      height: _itemSize,
+      decoration: BoxDecoration(
+        color: const Color(0xFF151515),
+        border: Border.all(color: border, width: 1.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Center(
+        child: SvgPicture.asset(
+          'assets/icons/ph--music-notes-fill.svg',
+          width: 24,
+          height: 24,
+          color: fg.withAlpha(128),
+        ),
+      ),
+    );
+  }
+
+  /// Actual file box with thumbnail + title
+  Widget _buildFileBox(_LibraryFile f, Color border) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: _itemSize,
+          height: _itemSize,
+          decoration: BoxDecoration(
+            color: const Color(0xFF151515),
+            border: Border.all(color: border, width: 1.5),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: f.thumbnail != null
+              ? Image.file(
+                  File(f.thumbnail!),
+                  fit: BoxFit.cover,
+                )
+              : Center(
+                  child: SvgPicture.asset(
+                    'assets/icons/ph--music-notes-fill.svg',
+                    width: 24,
+                    height: 24,
+                    color: brightGreen.withAlpha(128),
+                  ),
+                ),
+        ),
+        const SizedBox(height: 4),
+        SizedBox(
+          width: _itemSize,
+          child: Text(
+            f.title,
+            style: const TextStyle(color: brightGreen, fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-/// model for library items
 class _LibraryFile {
   final String filePath;
   final String title;

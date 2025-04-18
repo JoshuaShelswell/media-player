@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
-import 'package:path/path.dart' show extension;
 
 import '../services/playlist_repository.dart';
 import '../services/player_model.dart';
@@ -19,47 +18,47 @@ class PlayingSection extends StatefulWidget {
 }
 
 class _PlayingSectionState extends State<PlayingSection> {
-  List<String> droppedFiles = [];
+  final ScrollController _scrollController = ScrollController();
   int? _hoveredIndex;
-  bool _wasPlaying = false;
 
-  static const _supportedExts = {
-    '.mp3', '.aac', '.flac', '.wav', '.ogg', '.m4a', '.wma', '.alac', '.opus'
-  };
+  // height of each tile (including its vertical margin)
+  static const double _tileExtent = 56.0;
 
   @override
   void initState() {
     super.initState();
-    context.read<PlayerModel>().addListener(_onPlaybackUpdate);
+    final player = context.read<PlayerModel>();
+    player.addListener(_scrollToCurrent);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _scrollToCurrent());
   }
 
   @override
   void dispose() {
-    context.read<PlayerModel>().removeListener(_onPlaybackUpdate);
+    context.read<PlayerModel>().removeListener(_scrollToCurrent);
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _onPlaybackUpdate() {
-    final model = context.read<PlayerModel>();
-    final repo  = context.read<PlaylistRepository>();
+  void _scrollToCurrent() {
+    final repo   = context.read<PlaylistRepository>();
+    final player = context.read<PlayerModel>();
+    final pid    = repo.selectedPlaylistId;
+    if (pid == null) return;
 
-    if (_wasPlaying && !model.isPlaying && model.currentPath != null) {
-      final pos = model.position;
-      final dur = model.duration;
-      if (dur > 0 && (pos >= dur - 0.5)) {
-        repo.incrementPlayCount(model.currentPath!);
-        final pid = repo.selectedPlaylistId;
-        if (pid != null) {
-          final pl    = repo.playlists.firstWhere((p) => p.id == pid);
-          final songs = pl.songPaths;
-          final idx   = songs.indexOf(model.currentPath!);
-          if (idx >= 0 && idx < songs.length - 1) {
-            model.play(songs[idx + 1]);
-          }
-        }
-      }
-    }
-    _wasPlaying = model.isPlaying;
+    final pl    = repo.playlists.firstWhere((p) => p.id == pid);
+    final songs = pl.songPaths;
+    final current = player.currentPath;
+    if (current == null) return;
+
+    final idx = songs.indexOf(current);
+    if (idx < 0) return;
+
+    _scrollController.animateTo(
+      idx * _tileExtent,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -68,31 +67,22 @@ class _PlayingSectionState extends State<PlayingSection> {
     final darkGreen   = brightGreen.withAlpha((0.4 * 255).round());
     const sectionBg   = Color(0xFF151515);
 
-    final repo      = context.watch<PlaylistRepository>();
-    final selected  = repo.selectedPlaylistId != null
-        ? repo.playlists.firstWhere((p) => p.id == repo.selectedPlaylistId)
+    final repo = context.watch<PlaylistRepository>();
+    final pid  = repo.selectedPlaylistId;
+    final pl   = pid != null
+        ? repo.playlists.firstWhere((p) => p.id == pid)
         : null;
-    final songs     = selected?.songPaths ?? droppedFiles;
-    final trackCount = songs.length;
+    final songs = pl?.songPaths ?? [];
 
     final player  = context.watch<PlayerModel>();
     final current = player.currentPath;
 
     return DropTarget(
       onDragDone: (details) {
-        final paths = <String>[];
-        for (var f in details.files) {
-          final ext = extension(f.path).toLowerCase();
-          if (_supportedExts.contains(ext)) paths.add(f.path);
-        }
-        if (selected != null && selected.id.isNotEmpty) {
-          for (var p in paths) {
-            selected.songPaths.add(p);
-            selected.playCounts[p] = 0;
-          }
+        final paths = details.files.map((f) => f.path).toList();
+        if (pl != null) {
+          pl.songPaths.addAll(paths);
           repo.savePlaylists();
-        } else {
-          droppedFiles.addAll(paths);
         }
         setState(() {});
       },
@@ -120,7 +110,7 @@ class _PlayingSectionState extends State<PlayingSection> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Now Playing (tracks $trackCount)',
+                      'Now Playing (tracks ${songs.length})',
                       style: const TextStyle(
                         color: brightGreen,
                         fontSize: 16,
@@ -131,6 +121,8 @@ class _PlayingSectionState extends State<PlayingSection> {
                 ),
               ),
             ),
+
+            const SizedBox(height: 8),
 
             // Track list
             Expanded(
@@ -143,38 +135,44 @@ class _PlayingSectionState extends State<PlayingSection> {
                       ),
                     )
                   : ListView.builder(
+                      controller: _scrollController,
                       itemCount: songs.length,
+                      itemExtent: _tileExtent,
                       itemBuilder: (context, i) {
                         final track     = songs[i];
                         final title     = File(track).uri.pathSegments.last;
                         final isCurrent = track == current;
                         final isHover   = _hoveredIndex == i;
-                        final count     = selected?.playCounts[track] ?? 0;
+                        final played    = pl?.playCounts[track] ?? 0;
 
                         return MouseRegion(
                           cursor: SystemMouseCursors.click,
                           onEnter: (_) => setState(() => _hoveredIndex = i),
                           onExit:  (_) => setState(() => _hoveredIndex = null),
                           child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: isCurrent
-                                ? BoxDecoration(color: brightGreen.withAlpha(38))
+                                ? BoxDecoration(
+                                    color: brightGreen.withAlpha(38),
+                                  )
                                 : null,
                             child: ListTile(
+                              dense: true,
                               title: Row(
                                 children: [
                                   Expanded(
                                     child: Text(
                                       title,
-                                      style: TextStyle(color: brightGreen, fontSize: 14),
-                                      maxLines: 1,
+                                      style: TextStyle(color: brightGreen),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '(played $count)',
-                                    style: TextStyle(color: brightGreen.withAlpha(180), fontSize: 14),
+                                    '(played $played)',
+                                    style: TextStyle(
+                                        color: brightGreen, fontSize: 12),
                                   ),
                                 ],
                               ),
@@ -186,14 +184,18 @@ class _PlayingSectionState extends State<PlayingSection> {
                                   ? InkWell(
                                       onTap: () {
                                         setState(() {
-                                          selected!.songPaths.removeAt(i);
+                                          pl!.songPaths.removeAt(i);
                                           repo.savePlaylists();
                                           if (track == current) {
                                             context.read<PlayerModel>().stop();
                                           }
                                         });
                                       },
-                                      child: const Icon(Icons.close, color: Colors.red, size: 18),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.red,
+                                        size: 18,
+                                      ),
                                     )
                                   : null,
                             ),
