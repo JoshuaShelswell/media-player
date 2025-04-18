@@ -26,7 +26,7 @@ class _PlayerSectionState extends State<PlayerSection> {
   @override
   void initState() {
     super.initState();
-    _shuffle = false; // ensure off on startup
+    _shuffle = false;
     context.read<PlayerModel>().addListener(_onTrackChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _onTrackChanged());
   }
@@ -44,7 +44,9 @@ class _PlayerSectionState extends State<PlayerSection> {
       final dir = File(current).parent;
       try {
         for (var f in dir.listSync()) {
-          if (f is File && RegExp(r'\.(jpg|png|jpeg)$', caseSensitive: false).hasMatch(f.path)) {
+          if (f is File &&
+              RegExp(r'\.(jpg|png|jpeg)$', caseSensitive: false)
+                  .hasMatch(f.path)) {
             found = f.path;
             break;
           }
@@ -66,7 +68,9 @@ class _PlayerSectionState extends State<PlayerSection> {
     final pick = _shuffle
       ? songs[Random().nextInt(songs.length)]
       : (() {
-          final idx = player.currentPath != null ? songs.indexOf(player.currentPath!) : -1;
+          final idx = player.currentPath != null
+              ? songs.indexOf(player.currentPath!)
+              : -1;
           return songs[(idx > 0 ? idx - 1 : 0)];
         })();
 
@@ -86,8 +90,12 @@ class _PlayerSectionState extends State<PlayerSection> {
     final pick = _shuffle
       ? songs[Random().nextInt(songs.length)]
       : (() {
-          final idx = player.currentPath != null ? songs.indexOf(player.currentPath!) : -1;
-          final next = (idx >= 0 && idx < songs.length - 1) ? idx + 1 : songs.length - 1;
+          final idx = player.currentPath != null
+              ? songs.indexOf(player.currentPath!)
+              : -1;
+          final next = (idx >= 0 && idx < songs.length - 1)
+              ? idx + 1
+              : songs.length - 1;
           return songs[next];
         })();
 
@@ -135,8 +143,8 @@ class _PlayerSectionState extends State<PlayerSection> {
     const bgColor     = Color(0xFF151515);
 
     String titleText = player.currentPath != null
-      ? File(player.currentPath!).uri.pathSegments.last
-      : 'Media Player';
+        ? File(player.currentPath!).uri.pathSegments.last
+        : 'Media Player';
 
     return Container(
       decoration: BoxDecoration(
@@ -144,147 +152,157 @@ class _PlayerSectionState extends State<PlayerSection> {
         border: Border(bottom: BorderSide(color: darkGreen, width: 2)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(children: [
-        // Album art or placeholder
-        Container(
-          width: 60, height: 60,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1F1F1F),
-            border: Border.all(color: darkGreen, width: 2),
+      child: Row(
+        children: [
+          // Album art
+          Container(
+            width: 60, height: 60,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F1F1F),
+              border: Border.all(color: darkGreen, width: 2),
+            ),
+            child: _albumArtPath != null
+                ? Image.file(File(_albumArtPath!), fit: BoxFit.cover)
+                : Center(
+                    child: SvgPicture.asset(
+                      'assets/icons/ph--music-notes-fill.svg',
+                      color: brightGreen.withAlpha(128),
+                      width: 32, height: 32,
+                    ),
+                  ),
           ),
-          child: _albumArtPath != null
-            ? Image.file(File(_albumArtPath!), fit: BoxFit.cover)
-            : Center(
-                child: SvgPicture.asset(
-                  'assets/icons/ph--music-notes-fill.svg',
-                  color: brightGreen.withAlpha((0.5 * 255).round()),
-                  width: 32, height: 32,
+          const SizedBox(width: 16),
+
+          // Title
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                titleText,
+                style: TextStyle(
+                  color: brightGreen,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-        ),
-        const SizedBox(width: 16),
+            ],
+          ),
+          const SizedBox(width: 24),
 
-        // Track title
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(titleText,
-              style: TextStyle(
-                color: brightGreen,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
+          // Current time
+          Text(_formatTime(player.position),
+              style: TextStyle(color: brightGreen)),
+          const SizedBox(width: 8),
+
+          // **Progress slider** – tapping/clicking will now seek
+          Expanded(
+            child: Slider(
+              activeColor: brightGreen,
+              inactiveColor: darkGreen,
+              min: 0,
+              max: player.duration > 0 ? player.duration : 1,
+              value: player.position.clamp(0, player.duration),
+              onChanged: (v) => context.read<PlayerModel>().seek(v),
             ),
-          ],
-        ),
-        const SizedBox(width: 24),
-
-        // Time / seek bar / duration
-        Text(_formatTime(player.position),
-          style: TextStyle(color: brightGreen)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Slider(
-            activeColor: brightGreen,
-            inactiveColor: darkGreen,
-            min: 0,
-            max: player.duration > 0 ? player.duration : 1,
-            value: player.position.clamp(0, player.duration),
-            onChanged: (v) => context.read<PlayerModel>().seek(v),
           ),
-        ),
-        const SizedBox(width: 8),
-        Text(_formatTime(player.duration),
-          style: TextStyle(color: brightGreen)),
-        const SizedBox(width: 24),
+          const SizedBox(width: 8),
 
-        // Prev / rewind / play-pause / forward / next
-        IconButton(
-          icon: SvgPicture.asset('assets/icons/ph--skip-back-fill.svg',
-            color: brightGreen, width: 24, height: 24),
-          onPressed: _prevTrack,
-        ),
-        IconButton(
-          icon: SvgPicture.asset('assets/icons/ph--rewind-fill.svg',
-            color: brightGreen, width: 24, height: 24),
-          onPressed: _rewind10,
-        ),
-        IconButton(
-          icon: SvgPicture.asset(
-            player.isPlaying
-              ? 'assets/icons/ph--pause-circle-bold.svg'
-              : 'assets/icons/ph--play-circle-bold.svg',
-            color: brightGreen, width: 32, height: 32),
-          onPressed: () async {
-            if (player.currentPath == null) {
-              final repo = context.read<PlaylistRepository>();
-              final pid  = repo.selectedPlaylistId;
-              if (pid != null) {
-                final pl = repo.playlists.firstWhere((p) => p.id == pid);
-                if (pl.songPaths.isNotEmpty) {
-                  final pick = _shuffle
-                    ? pl.songPaths[Random().nextInt(pl.songPaths.length)]
-                    : pl.songPaths.first;
-                  await context.read<PlayerModel>().play(pick);
-                }
-              }
-            } else {
-              await context.read<PlayerModel>().togglePause();
-            }
-          },
-        ),
-        IconButton(
-          icon: SvgPicture.asset('assets/icons/ph--fast-forward-fill.svg',
-            color: brightGreen, width: 24, height: 24),
-          onPressed: _forward10,
-        ),
-        IconButton(
-          icon: SvgPicture.asset('assets/icons/ph--skip-forward-fill.svg',
-            color: brightGreen, width: 24, height: 24),
-          onPressed: _nextTrack,
-        ),
+          // Total duration
+          Text(_formatTime(player.duration),
+              style: TextStyle(color: brightGreen)),
+          const SizedBox(width: 24),
 
-        const SizedBox(width: 16),
-
-        // Shuffle toggle (off = darkGreen, on = brightGreen)
-        IconButton(
-          icon: SvgPicture.asset(
-            _shuffle
-              ? 'assets/icons/ph--shuffle-bold.svg'
-              : 'assets/icons/ph--shuffle-off-bold.svg',
-            color: _shuffle ? brightGreen : darkGreen,
-            width: 24, height: 24,
+          // Prev / rewind / play/pause / forward / next
+          IconButton(
+            icon: SvgPicture.asset('assets/icons/ph--skip-back-fill.svg',
+                color: brightGreen, width: 24, height: 24),
+            onPressed: _prevTrack,
           ),
-          onPressed: _toggleShuffle,
-        ),
-
-        const SizedBox(width: 24),
-
-        // Mute / Volume
-        Transform.translate(
-          offset: const Offset(8, 0),
-          child: IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+          IconButton(
+            icon: SvgPicture.asset('assets/icons/ph--rewind-fill.svg',
+                color: brightGreen, width: 24, height: 24),
+            onPressed: _rewind10,
+          ),
+          IconButton(
             icon: SvgPicture.asset(
-              _speakerAsset,
-              color: brightGreen,
+                player.isPlaying
+                    ? 'assets/icons/ph--pause-circle-bold.svg'
+                    : 'assets/icons/ph--play-circle-bold.svg',
+                color: brightGreen, width: 32, height: 32),
+            onPressed: () async {
+              if (player.currentPath == null) {
+                final repo = context.read<PlaylistRepository>();
+                final pid  = repo.selectedPlaylistId;
+                if (pid != null) {
+                  final pl = repo.playlists
+                      .firstWhere((p) => p.id == pid);
+                  if (pl.songPaths.isNotEmpty) {
+                    final pick = _shuffle
+                        ? pl.songPaths[Random()
+                            .nextInt(pl.songPaths.length)]
+                        : pl.songPaths.first;
+                    await context.read<PlayerModel>().play(pick);
+                  }
+                }
+              } else {
+                await context.read<PlayerModel>().togglePause();
+              }
+            },
+          ),
+          IconButton(
+            icon: SvgPicture.asset('assets/icons/ph--fast-forward-fill.svg',
+                color: brightGreen, width: 24, height: 24),
+            onPressed: _forward10,
+          ),
+          IconButton(
+            icon: SvgPicture.asset('assets/icons/ph--skip-forward-fill.svg',
+                color: brightGreen, width: 24, height: 24),
+            onPressed: _nextTrack,
+          ),
+
+          const SizedBox(width: 16),
+
+          // Shuffle toggle
+          IconButton(
+            icon: SvgPicture.asset(
+              _shuffle
+                  ? 'assets/icons/ph--shuffle-bold.svg'
+                  : 'assets/icons/ph--shuffle-off-bold.svg',
+              color: _shuffle ? brightGreen : darkGreen,
               width: 24, height: 24,
             ),
-            onPressed: _toggleMute,
+            onPressed: _toggleShuffle,
           ),
-        ),
-        SizedBox(
-          width: 200,
-          child: Slider(
-            activeColor: brightGreen,
-            inactiveColor: darkGreen,
-            value: _muted ? 0 : _volume,
-            onChanged: _onVolumeChanged,
+
+          const SizedBox(width: 24),
+
+          // Mute / Volume
+          Transform.translate(
+            offset: const Offset(8, 0),
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              constraints:
+                  const BoxConstraints.tightFor(width: 24, height: 24),
+              icon: SvgPicture.asset(
+                _speakerAsset,
+                color: brightGreen,
+                width: 24, height: 24,
+              ),
+              onPressed: _toggleMute,
+            ),
           ),
-        ),
-      ]),
+          SizedBox(
+            width: 200,
+            child: Slider(
+              activeColor: brightGreen,
+              inactiveColor: darkGreen,
+              value: _muted ? 0 : _volume,
+              onChanged: _onVolumeChanged,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
