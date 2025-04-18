@@ -52,9 +52,14 @@ pub extern "C" fn play_audio_file(file_path: *const c_char) -> i32 {
         }
     };
 
-    // Clone & reset flags
-    let pause = unsafe { PAUSE_FLAG.as_ref().unwrap().clone() };
-    let stop  = unsafe { STOP_FLAG.as_ref().unwrap().clone() };
+    // Clone & reset flags via raw pointers (no shared refs)
+    let (pause, stop) = unsafe {
+        let p_ptr = &raw const PAUSE_FLAG;
+        let s_ptr = &raw const STOP_FLAG;
+        let p = (*p_ptr).as_ref().unwrap().clone();
+        let s = (*s_ptr).as_ref().unwrap().clone();
+        (p, s)
+    };
     pause.store(false, Ordering::SeqCst);
     stop.store(false,  Ordering::SeqCst);
 
@@ -77,19 +82,34 @@ pub extern "C" fn play_audio_file(file_path: *const c_char) -> i32 {
 #[no_mangle]
 pub extern "C" fn pause_audio_file() {
     init_globals();
-    unsafe { PAUSE_FLAG.as_ref().unwrap().store(true, Ordering::SeqCst); }
+    unsafe {
+        let ptr = &raw const PAUSE_FLAG;
+        if let Some(flag) = (*ptr).as_ref() {
+            flag.store(true, Ordering::SeqCst);
+        }
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn resume_audio_file() {
     init_globals();
-    unsafe { PAUSE_FLAG.as_ref().unwrap().store(false, Ordering::SeqCst); }
+    unsafe {
+        let ptr = &raw const PAUSE_FLAG;
+        if let Some(flag) = (*ptr).as_ref() {
+            flag.store(false, Ordering::SeqCst);
+        }
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn stop_audio() -> i32 {
     init_globals();
-    unsafe { STOP_FLAG.as_ref().unwrap().store(true, Ordering::SeqCst); }
+    unsafe {
+        let ptr = &raw const STOP_FLAG;
+        if let Some(flag) = (*ptr).as_ref() {
+            flag.store(true, Ordering::SeqCst);
+        }
+    }
     0
 }
 
@@ -97,10 +117,13 @@ pub extern "C" fn stop_audio() -> i32 {
 pub extern "C" fn get_position_seconds() -> f32 {
     init_globals();
     unsafe {
-        POSITION
-            .as_ref()
-            .map(|p| p.lock().unwrap().position().as_secs_f32())
-            .unwrap_or(0.0)
+        let ptr = &raw const POSITION;
+        if let Some(pos_arc) = (*ptr).as_ref() {
+            let guard = pos_arc.lock().unwrap();
+            guard.position().as_secs_f32()
+        } else {
+            0.0
+        }
     }
 }
 
@@ -108,23 +131,23 @@ pub extern "C" fn get_position_seconds() -> f32 {
 pub extern "C" fn get_duration_seconds() -> f32 {
     init_globals();
     unsafe {
-        POSITION
-            .as_ref()
-            .map(|p| p.lock().unwrap().duration().as_secs_f32())
-            .unwrap_or(0.0)
+        let ptr = &raw const POSITION;
+        if let Some(pos_arc) = (*ptr).as_ref() {
+            let guard = pos_arc.lock().unwrap();
+            guard.duration().as_secs_f32()
+        } else {
+            0.0
+        }
     }
 }
-
-// ————————————————————————————————————————————————————————————
-// VOLUME CONTROL
-// ————————————————————————————————————————————————————————————
 
 /// Set playback volume (0.0–1.0).
 #[no_mangle]
 pub extern "C" fn set_volume(level: f32) {
     init_globals();
     unsafe {
-        if let Some(vol_arc) = &VOLUME {
+        let ptr = &raw const VOLUME;
+        if let Some(vol_arc) = (*ptr).as_ref() {
             if let Ok(mut vol_lock) = vol_arc.lock() {
                 *vol_lock = level.clamp(0.0, 1.0);
                 eprintln!("⚙️ volume set to {}", *vol_lock);
@@ -133,25 +156,18 @@ pub extern "C" fn set_volume(level: f32) {
     }
 }
 
-// ————————————————————————————————————————————————————————————
-// SEEK CONTROL
-// ————————————————————————————————————————————————————————————
-
 /// Seek playback to absolute [seconds].
 #[no_mangle]
 pub extern "C" fn seek_audio(target_sec: f32) {
     init_globals();
     unsafe {
-        if let (Some(pos_arc), Some(dur_s)) = (
-            &POSITION,
-            POSITION.as_ref().map(|p| p.lock().unwrap().duration().as_secs_f32()),
-        ) {
-            let duration = dur_s.max(0.0001);
+        let ptr = &raw const POSITION;
+        if let Some(pos_arc) = (*ptr).as_ref() {
+            let mut guard = pos_arc.lock().unwrap();
+            let duration = guard.duration().as_secs_f32().max(0.0001);
             let fraction = (target_sec / duration).clamp(0.0, 1.0);
-            if let Ok(mut pos_lock) = pos_arc.lock() {
-                pos_lock.request_seek(fraction);
-                eprintln!("⏩ seek requested to {:.4} ({:.2}%)", fraction, fraction*100.0);
-            }
+            guard.request_seek(fraction);
+            eprintln!("⏩ seek requested to {:.4} ({:.2}%)", fraction, fraction * 100.0);
         }
     }
 }
