@@ -16,7 +16,8 @@ class PlayerSection extends StatefulWidget {
 
 class PlayerSectionState extends State<PlayerSection> {
   final Color brightGreen = const Color(0xFF00FF00);
-  late final Color darkGreen = brightGreen.withAlpha((0.4 * 255).round());
+  late final Color darkGreen =
+      brightGreen.withAlpha((0.4 * 255).round());
   final Color bgColor = const Color(0xFF151515);
 
   double _volume = 0.75;
@@ -32,7 +33,6 @@ class PlayerSectionState extends State<PlayerSection> {
   }
 
   void _toggleMute() => setState(() => _muted = !_muted);
-
   void _onVolumeChanged(double val) {
     setState(() {
       _volume = val;
@@ -42,29 +42,10 @@ class PlayerSectionState extends State<PlayerSection> {
 
   void _toggleShuffle() => setState(() => _shuffle = !_shuffle);
 
-  Future<void> _onPlayPause() async {
-    final player = context.read<PlayerModel>();
-
-    if (player.isPlaying) {
-      // actually stop the audio
-      await player.stop();
-    } else if (player.currentPath != null) {
-      // resume by replaying the same file
-      await player.play(player.currentPath!);
-    } else {
-      // no track loaded yet: play the first song in the selected playlist
-      final repo = context.read<PlaylistRepository>();
-      final selected = repo.selectedPlaylistId != null
-          ? repo.playlists.firstWhere(
-              (p) => p.id == repo.selectedPlaylistId,
-              orElse: () => Playlist(id: '', name: ''),
-            )
-          : null;
-      final songs = selected?.songPaths ?? [];
-      if (songs.isNotEmpty) {
-        await player.play(songs.first);
-      }
-    }
+  String _formatTime(double seconds) {
+    final minutes = seconds ~/ 60;
+    final secs = (seconds % 60).toInt().toString().padLeft(2, '0');
+    return '$minutes:$secs';
   }
 
   @override
@@ -129,22 +110,36 @@ class PlayerSectionState extends State<PlayerSection> {
           ),
           const SizedBox(width: 24),
 
-          // Progress display
-          Text('0:00', style: TextStyle(color: brightGreen)),
+          // Current time
+          Text(
+            _formatTime(player.position),
+            style: TextStyle(color: brightGreen),
+          ),
           const SizedBox(width: 8),
+
+          // Progress bar
           Expanded(
             child: Slider(
               activeColor: brightGreen,
               inactiveColor: darkGreen,
-              value: 0.2,
-              onChanged: (_) {},
+              min: 0,
+              max: player.duration > 0 ? player.duration : 1,
+              value: player.position.clamp(0, player.duration > 0 ? player.duration : 1),
+              onChanged: (_) {
+                // seeking not implemented yet
+              },
             ),
           ),
           const SizedBox(width: 8),
-          Text('3:45', style: TextStyle(color: brightGreen)),
+
+          // Total duration
+          Text(
+            _formatTime(player.duration),
+            style: TextStyle(color: brightGreen),
+          ),
           const SizedBox(width: 24),
 
-          // Skip / rewind
+          // Skip back / rewind
           IconButton(
             icon: SvgPicture.asset(
               'assets/icons/ph--skip-back-fill.svg',
@@ -152,7 +147,7 @@ class PlayerSectionState extends State<PlayerSection> {
               width: 24,
               height: 24,
             ),
-            onPressed: () {},
+            onPressed: () {}, // implement skip-back if desired
           ),
           IconButton(
             icon: SvgPicture.asset(
@@ -161,7 +156,7 @@ class PlayerSectionState extends State<PlayerSection> {
               width: 24,
               height: 24,
             ),
-            onPressed: () {},
+            onPressed: () {}, // implement rewind if desired
           ),
 
           // Play / Pause
@@ -172,10 +167,10 @@ class PlayerSectionState extends State<PlayerSection> {
               width: 32,
               height: 32,
             ),
-            onPressed: _onPlayPause,
+            onPressed: () => context.read<PlayerModel>().togglePause(),
           ),
 
-          // Fast‑forward / skip
+          // Fast-forward / skip forward
           IconButton(
             icon: SvgPicture.asset(
               'assets/icons/ph--fast-forward-fill.svg',
@@ -183,7 +178,7 @@ class PlayerSectionState extends State<PlayerSection> {
               width: 24,
               height: 24,
             ),
-            onPressed: () {},
+            onPressed: () {}, // implement fast-forward if desired
           ),
           IconButton(
             icon: SvgPicture.asset(
@@ -192,8 +187,10 @@ class PlayerSectionState extends State<PlayerSection> {
               width: 24,
               height: 24,
             ),
-            onPressed: () {},
+            onPressed: () {}, // implement skip-forward if desired
           ),
+
+          const SizedBox(width: 16),
 
           // Shuffle
           IconButton(
@@ -214,7 +211,8 @@ class PlayerSectionState extends State<PlayerSection> {
             offset: const Offset(8, 0),
             child: IconButton(
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+              constraints:
+                  const BoxConstraints.tightFor(width: 24, height: 24),
               icon: SvgPicture.asset(
                 _speakerAsset,
                 color: brightGreen,

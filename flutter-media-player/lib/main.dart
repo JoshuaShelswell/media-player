@@ -1,6 +1,7 @@
 // lib/main.dart
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -14,65 +15,50 @@ import 'services/audio_player.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 1. Initialize window_manager
   await windowManager.ensureInitialized();
 
-  // Restore window position
-  final prefs = await SharedPreferences.getInstance();
-  final posX = prefs.getDouble('windowPosX') ?? 100.0;
-  final posY = prefs.getDouble('windowPosY') ?? 100.0;
-  await windowManager.setPosition(Offset(posX, posY));
+  // 2. Intercept the close button instead of letting it kill just the window
+  await windowManager.setPreventClose(true);
 
-  // Listen for the window close to stop audio
-  windowManager.addListener(MyWindowListener());
+  // 3. Restore the last position
+  final prefs = await SharedPreferences.getInstance();
+  final dx = prefs.getDouble('windowPosX') ?? 100.0;
+  final dy = prefs.getDouble('windowPosY') ?? 100.0;
+  await windowManager.setPosition(Offset(dx, dy));
+
+  // 4. Listen for our custom close logic
+  windowManager.addListener(_MyWindowCloseListener());
 
   runApp(const MyMediaPlayerApp());
 }
 
-class MyWindowListener extends WindowListener {
+class _MyWindowCloseListener extends WindowListener {
   @override
-  void onWindowClose() async {
-    // Save window position
-    final p = await windowManager.getPosition();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('windowPosX', p.dx);
-    await prefs.setDouble('windowPosY', p.dy);
-
-    // Stop any playing audio before the window fully closes
-    await AudioPlayer.instance.stop();
-  }
-}
-
-class MyMediaPlayerApp extends StatefulWidget {
-  const MyMediaPlayerApp({super.key});
-  @override
-  State<MyMediaPlayerApp> createState() => _MyMediaPlayerAppState();
-}
-
-class _MyMediaPlayerAppState extends State<MyMediaPlayerApp>
-    with WindowListener {
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    windowManager.addListener(this);
-    // Periodically save window position
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) async {
-      final p = await windowManager.getPosition();
+  Future<void> onWindowClose() async {
+    // confirm we actually want to intercept
+    if (await windowManager.isPreventClose()) {
+      // a) save window position
+      final pos = await windowManager.getPosition();
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setDouble('windowPosX', p.dx);
-      await prefs.setDouble('windowPosY', p.dy);
-    });
-  }
+      await prefs.setDouble('windowPosX', pos.dx);
+      await prefs.setDouble('windowPosY', pos.dy);
 
-  @override
-  void dispose() {
-    // stop audio if the app/widget tree is disposed
-    AudioPlayer.instance.stop();
-    windowManager.removeListener(this);
-    _timer?.cancel();
-    super.dispose();
+      // b) stop any playing audio / FFmpeg isolate
+      await AudioPlayer.instance.stop();
+
+      // c) destroy the window
+      await windowManager.destroy();
+
+      // d) exit the process completely
+      exit(0);
+    }
   }
+}
+
+class MyMediaPlayerApp extends StatelessWidget {
+  const MyMediaPlayerApp({super.key});
 
   @override
   Widget build(BuildContext context) {

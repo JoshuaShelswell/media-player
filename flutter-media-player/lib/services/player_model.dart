@@ -1,15 +1,15 @@
 // lib/services/player_model.dart
 
 import 'package:flutter/material.dart';
-
 import 'audio_player.dart';
 
-/// Exposes play/pause/stop for UI via ChangeNotifier.
 class PlayerModel extends ChangeNotifier {
   final AudioPlayer _audio = AudioPlayer.instance;
 
   String? get currentPath => _audio.currentPath;
   bool   get isPlaying   => _audio.isPlaying;
+  double get position    => _audio.position;
+  double get duration    => _audio.duration;
 
   PlayerModel() {
     _audio.addListener(notifyListeners);
@@ -18,7 +18,6 @@ class PlayerModel extends ChangeNotifier {
   @override
   void dispose() {
     _audio.removeListener(notifyListeners);
-    // ensure we clean up the native isolate if this model is torn down
     _audio.stop();
     super.dispose();
   }
