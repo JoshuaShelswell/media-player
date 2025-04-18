@@ -1,5 +1,3 @@
-// lib/screens/player_section.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -75,6 +73,7 @@ class PlayerSectionState extends State<PlayerSection> {
           // Track info
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Media Player',

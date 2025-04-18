@@ -1,53 +1,118 @@
 // lib/services/audio_player.dart
 
+import 'dart:async';
 import 'dart:ffi';
-import 'dart:io';
+import 'dart:isolate';
+
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 
-/// Attempt to load the Rust engine library from the app folder,
-/// falling back to the executable’s directory if needed.
-DynamicLibrary _openRustEngineLib() {
-  if (Platform.isWindows) {
-    try {
-      return DynamicLibrary.open('rust_engine.dll');
-    } catch (_) {
-      final exeDir = File(Platform.resolvedExecutable).parent.path;
-      return DynamicLibrary.open('$exeDir${Platform.pathSeparator}rust_engine.dll');
-    }
-  } else if (Platform.isLinux) {
-    try {
-      return DynamicLibrary.open('librust_engine.so');
-    } catch (_) {
-      final exeDir = File(Platform.resolvedExecutable).parent.path;
-      return DynamicLibrary.open('$exeDir${Platform.pathSeparator}librust_engine.so');
-    }
-  } else if (Platform.isMacOS) {
-    try {
-      return DynamicLibrary.open('librust_engine.dylib');
-    } catch (_) {
-      final exeDir = File(Platform.resolvedExecutable).parent.path;
-      return DynamicLibrary.open('$exeDir${Platform.pathSeparator}librust_engine.dylib');
-    }
-  }
-  throw UnsupportedError('Unsupported platform');
-}
+/// Dart-side API for our Rust engine.
+class AudioPlayer extends ChangeNotifier {
+  AudioPlayer._();
+  static final AudioPlayer instance = AudioPlayer._();
 
-final DynamicLibrary _audioLib = _openRustEngineLib();
+  /// “now playing” path
+  String? _currentPath;
+  String? get currentPath => _currentPath;
 
-// C signature: extern "C" fn play_audio_file_ffi(file_path: *const c_char) -> i32;
-typedef _PlayAudioC = Int32 Function(Pointer<Utf8> filePath);
-typedef _PlayAudioD = int Function(Pointer<Utf8> filePath);
+  /// total duration (seconds)
+  final double _duration = 0.0;
+  double get duration => _duration;
 
-final _PlayAudioD _playAudio = _audioLib
-    .lookup<NativeFunction<_PlayAudioC>>('play_audio_file_ffi')
-    .asFunction();
+  /// current playhead (seconds)
+  double _position = 0.0;
+  double get position => _position;
 
-class AudioPlayer {
-  /// Play the given file path via the Rust engine. Returns 0 on success.
-  static int play(String filePath) {
-    final ptr = filePath.toNativeUtf8();
-    final result = _playAudio(ptr);
+  /// are we playing?
+  bool _isPlaying = false;
+  bool get isPlaying => _isPlaying;
+
+  Isolate? _playbackIsolate;
+  Timer?   _positionTimer;
+
+  /// FFI bindings
+  static final DynamicLibrary _lib = DynamicLibrary.open('rust_engine.dll');
+  static final _PlayNative _playFFI = _lib
+      .lookup<NativeFunction<_CPlay>>('play_audio_file')
+      .asFunction();
+  static final _StopNative _stopFFI = _lib
+      .lookup<NativeFunction<_CStop>>('stop_audio')
+      .asFunction();
+  static final _PosNative _posFFI = _lib
+      .lookup<NativeFunction<_CGetPos>>('get_position_seconds')
+      .asFunction();
+
+  /// Start playing [path].  Non‐blocking.
+  Future<void> play(String path) async {
+    await stop(); // stop any existing playback first
+    _currentPath = path;
+    _isPlaying   = true;
+    notifyListeners();
+
+    // spawn FFI call off the UI thread
+    final ptr = path.toNativeUtf8();
+    await compute<_PlayArgs, void>(
+      _spawnPlay,
+      _PlayArgs(ptr, _playFFI),
+    );
     malloc.free(ptr);
-    return result;
+
+    // start polling position
+    _positionTimer = Timer.periodic(
+      const Duration(milliseconds: 200),
+      (_) {
+        if (!_isPlaying) return;
+        _position = _posFFI();
+        notifyListeners();
+      },
+    );
+  }
+
+  /// Stop playback immediately.
+  Future<void> stop() async {
+    if (_isPlaying) {
+      _isPlaying = false;
+      notifyListeners();
+      _positionTimer?.cancel();
+      _stopFFI();
+      // also kill isolate if you spawned one:
+      _playbackIsolate?.kill(priority: Isolate.immediate);
+      _playbackIsolate = null;
+    }
+  }
+
+  /// Pause/resume
+  Future<void> togglePause() async {
+    if (_isPlaying) {
+      _stopFFI();
+      _isPlaying = false;
+    } else if (_currentPath != null) {
+      // re‐play from current path (Rust should resume)
+      await play(_currentPath!);
+    }
+    notifyListeners();
+  }
+
+  /// callback for compute()
+  static void _spawnPlay(_PlayArgs args) {
+    args.play(args.ptr);
   }
 }
+
+/// small wrapper to pass pointer + function into isolate
+class _PlayArgs {
+  final Pointer<Utf8> ptr;
+  final _PlayNative  play;
+  _PlayArgs(this.ptr, this.play);
+}
+
+/// FFI typedefs
+typedef _CPlay     = Void Function(Pointer<Utf8>);
+typedef _PlayNative= void Function(Pointer<Utf8>);
+
+typedef _CStop     = Void Function();
+typedef _StopNative= void Function();
+
+typedef _CGetPos    = Float Function();
+typedef _PosNative = double Function();

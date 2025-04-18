@@ -2,51 +2,48 @@
 
 mod audio;
 
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
 use std::os::raw::c_char;
 
-// Re-export items from the audio module if desired.
+// Re-export core APIs (but *not* `play_audio_file`—we’ll expose that by name below).
 pub use audio::buffer::AudioRingBuffer;
-pub use audio::decoder::{initialize_ffmpeg, get_supported_extensions, is_supported_audio_format, play_audio_file};
+pub use audio::decoder::{initialize_ffmpeg, get_supported_extensions, is_supported_audio_format};
 pub use audio::position::PlaybackPosition;
 pub use audio::state::{PlayerState, PlaybackStatus};
 
+/// FFI entrypoint for playing a track.
+/// Exported as `play_audio_file` so your Flutter code can `DynamicLibrary.lookup("play_audio_file")`.
 #[no_mangle]
-pub extern "C" fn play_audio_file_ffi(file_path: *const c_char) -> i32 {
-    // Convert the incoming C string into a Rust string.
+pub extern "C" fn play_audio_file(file_path: *const c_char) -> i32 {
     let path = unsafe {
         if file_path.is_null() {
-            return -1; // Error code for null pointer.
+            return -1; // null pointer
         }
         match CStr::from_ptr(file_path).to_str() {
             Ok(s) => s.to_owned(),
-            Err(_) => return -2, // Conversion error.
+            Err(_) => return -2, // invalid UTF-8
         }
     };
 
-    // Create or initialize necessary flags, state, and other parameters.
-    // For real use, you likely want to manage these over multiple calls.
     use std::sync::{Arc, Mutex, atomic::AtomicBool};
-    use audio::decoder::play_audio_file;
+    use audio::decoder::play_audio_file as decoder_play;
 
-    // We create dummy flags and state here.
     let pause_flag = Arc::new(AtomicBool::new(false));
-    let stop_flag = Arc::new(AtomicBool::new(false));
-    let state = Arc::new(Mutex::new(PlayerState::default()));
-    let playback_position = Arc::new(Mutex::new(PlaybackPosition::new(44100)));
-    let volume = Arc::new(Mutex::new(1.0_f32));
+    let stop_flag  = Arc::new(AtomicBool::new(false));
+    let state      = Arc::new(Mutex::new(PlayerState::default()));
+    let position   = Arc::new(Mutex::new(PlaybackPosition::new(44_100)));
+    let volume     = Arc::new(Mutex::new(1.0_f32));
 
-    // Call the play function from the decoder module.
-    // This function should already be implemented in your old code.
-    match play_audio_file(
-        &path,
-        pause_flag,
-        stop_flag,
-        state,
-        playback_position,
-        volume,
-    ) {
-        Ok(_) => 0,  // Success
-        Err(_) => -3, // Failure launching playback
+    match decoder_play(&path, pause_flag, stop_flag, state, position, volume) {
+        Ok(_) => 0,
+        Err(_) => -3,
     }
+}
+
+/// FFI stub for stopping playback (Flutter expects `stop_audio`).
+/// You can wire this up to your `stop_flag`/`state` if you hold them somewhere globally.
+#[no_mangle]
+pub extern "C" fn stop_audio() -> i32 {
+    // TODO: signal your decoder's stop_flag here
+    0
 }

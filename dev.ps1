@@ -1,29 +1,29 @@
 # dev.ps1
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = "Stop"
 
 function Kill-ExistingFlutterRemote {
-    Write-Host 'Checking for running flutter_remote.exe…'
-    $procs = Get-Process -Name flutter_remote -ErrorAction SilentlyContinue
-    if ($procs) {
-        Write-Host 'Terminating flutter_remote.exe…'
-        $procs | Stop-Process -Force
+    Write-Host "Checking for running flutter_remote.exe..."
+    $processes = Get-Process -Name flutter_remote -ErrorAction SilentlyContinue
+    if ($processes) {
+        Write-Host "Found running flutter_remote.exe, terminating..."
+        $processes | Stop-Process -Force
         Start-Sleep -Seconds 3
     }
     else {
-        Write-Host 'No existing flutter_remote.exe found.'
+        Write-Host "No existing flutter_remote.exe process found."
     }
 }
 
 function Build-RustEngine {
-    Write-Host 'Building Rust engine…'
+    Write-Host "Building Rust engine..."
     Push-Location "$PSScriptRoot\rust-engine"
     cargo build --release
     Pop-Location
-    Write-Host 'Rust engine build completed.'
+    Write-Host "Rust engine build completed."
 }
 
 function Copy-RustEngineDll {
-    Write-Host 'Locating rust_engine.dll…'
+    Write-Host "Locating rust_engine.dll…"
     $candidates = @(
         "$PSScriptRoot\rust-engine\target\release\rust_engine.dll",
         "$PSScriptRoot\target\release\rust_engine.dll"
@@ -36,49 +36,57 @@ function Copy-RustEngineDll {
     Write-Host "  Found: $src"
 
     $dest = "$PSScriptRoot\flutter-media-player\build\windows\x64\runner\Debug"
-    if (-not (Test-Path $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
-    Copy-Item -Path $src -Destination (Join-Path $dest 'rust_engine.dll') -Force
+    if (-not (Test-Path $dest)) {
+        New-Item -ItemType Directory -Path $dest -Force | Out-Null
+    }
+    Copy-Item -Path $src -Destination (Join-Path $dest "rust_engine.dll") -Force
     Write-Host "Copied rust_engine.dll → $dest"
 }
 
 function Copy-FFmpegDlls {
-    Write-Host 'Copying FFmpeg dependencies…'
-    $vcpkgBin = 'C:\vcpkg\packages\ffmpeg_x64-windows\bin'
+    Write-Host "Copying FFmpeg dependencies…"
+    $vcpkgBin = "C:\vcpkg\packages\ffmpeg_x64-windows\bin"
     if (-not (Test-Path $vcpkgBin)) {
         Write-Error "FFmpeg bin folder not found at $vcpkgBin"
         exit 1
     }
 
     $dest = "$PSScriptRoot\flutter-media-player\build\windows\x64\runner\Debug"
-    # grab *both* av* and sw* dlls
-    Get-ChildItem -Path $vcpkgBin -Filter '*.dll' |
-      Where-Object { $_.Name -match '^(avcodec|avdevice|avfilter|avformat|avutil|swresample|swscale)-' } |
+    if (-not (Test-Path $dest)) {
+        New-Item -ItemType Directory -Path $dest -Force | Out-Null
+    }
+
+    # Copy all .dll files whose names start with av* or sw*
+    Get-ChildItem -Path $vcpkgBin -Filter '*.dll' -File |
+      Where-Object { $_.Name -match '^(av|sw)' } |
       ForEach-Object {
         Copy-Item -Path $_.FullName -Destination $dest -Force
-        Write-Host "  $_.Name → $dest"
+        Write-Host "  Copied $($_.Name) → $dest"
       }
-    Write-Host 'FFmpeg DLLs copied.'
+
+    Write-Host "FFmpeg DLLs copied."
 }
 
 function Run-FlutterMediaPlayer {
-    Write-Host 'Launching Flutter Media Player for Windows…'
+    Write-Host "Launching Flutter Media Player for Windows…"
     Push-Location "$PSScriptRoot\flutter-media-player"
 
-    if (-not (Test-Path "$PSScriptRoot\flutter-media-player\windows")) {
-        Write-Host 'Configuring Windows desktop support…'
+    if (!(Test-Path "$PSScriptRoot\flutter-media-player\windows")) {
+        Write-Host "Configuring Windows desktop support…"
         flutter create .
     }
+
     flutter pub get
     Kill-ExistingFlutterRemote
 
-    Write-Host 'Starting flutter run -d windows --debug…'
-    $flutterProcess = Start-Process flutter -ArgumentList 'run -d windows --debug' -NoNewWindow -PassThru
+    Write-Host "Starting flutter run -d windows --debug…"
+    $flutterProcess = Start-Process flutter -ArgumentList "run -d windows --debug" -NoNewWindow -PassThru
 
-    Write-Host 'Waiting for flutter_remote.exe…'
+    Write-Host "Waiting for flutter_remote.exe…"
     for ($i = 0; $i -lt 20; $i++) {
-        if (Get-Process -Name 'flutter_remote' -ErrorAction SilentlyContinue) {
-            Write-Host 'flutter_remote.exe is running.'
-            Wait-Process -Name 'flutter_remote'
+        if (Get-Process -Name "flutter_remote" -ErrorAction SilentlyContinue) {
+            Write-Host "flutter_remote.exe is running."
+            Wait-Process -Name "flutter_remote"
             break
         }
         Start-Sleep -Seconds 1
@@ -92,7 +100,7 @@ function Run-FlutterMediaPlayer {
     Pop-Location
 }
 
-# — Main Execution —
+# --- Main Script Execution ---
 Build-RustEngine
 Copy-RustEngineDll
 Copy-FFmpegDlls
