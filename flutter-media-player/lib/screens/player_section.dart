@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 
 import '../services/player_model.dart';
@@ -22,8 +22,6 @@ class _PlayerSectionState extends State<PlayerSection> {
   bool _muted = false;
   bool _shuffle = false;
   String? _albumArtPath;
-
-  // Prevent overlapping next/prev actions
   bool _transitioning = false;
 
   @override
@@ -45,16 +43,12 @@ class _PlayerSectionState extends State<PlayerSection> {
     String? found;
     if (current != null) {
       final dir = File(current).parent;
-      try {
-        for (var f in dir.listSync()) {
-          if (f is File &&
-              RegExp(r'\.(jpg|png|jpeg)$', caseSensitive: false)
-                  .hasMatch(f.path)) {
-            found = f.path;
-            break;
-          }
+      for (var f in dir.listSync()) {
+        if (f is File && RegExp(r'\.(jpg|png|jpeg)$', caseSensitive: false).hasMatch(f.path)) {
+          found = f.path;
+          break;
         }
-      } catch (_) {}
+      }
     }
     setState(() => _albumArtPath = found);
   }
@@ -62,25 +56,21 @@ class _PlayerSectionState extends State<PlayerSection> {
   Future<void> _prevTrack() async {
     if (_transitioning) return;
     _transitioning = true;
-
-    final repo   = context.read<PlaylistRepository>();
+    final repo = context.read<PlaylistRepository>();
     final player = context.read<PlayerModel>();
-    final pid    = repo.selectedPlaylistId;
+    final pid = repo.selectedPlaylistId;
     if (pid != null) {
-      final pl    = repo.playlists.firstWhere((p) => p.id == pid);
+      final pl = repo.playlists.firstWhere((p) => p.id == pid);
       final songs = pl.songPaths;
       if (songs.isNotEmpty) {
         String pick;
         if (_shuffle) {
-          final counts   = pl.playCounts;
+          final counts = pl.playCounts;
           final minCount = songs.map((s) => counts[s] ?? 0).reduce(min);
-          final candidates =
-              songs.where((s) => (counts[s] ?? 0) == minCount).toList();
+          final candidates = songs.where((s) => (counts[s] ?? 0) == minCount).toList();
           pick = candidates[Random().nextInt(candidates.length)];
         } else {
-          final idx    = player.currentPath != null
-              ? songs.indexOf(player.currentPath!)
-              : -1;
+          final idx = player.currentPath != null ? songs.indexOf(player.currentPath!) : -1;
           final prevIx = idx > 0 ? idx - 1 : 0;
           pick = songs[prevIx];
         }
@@ -89,35 +79,28 @@ class _PlayerSectionState extends State<PlayerSection> {
         await player.play(pick);
       }
     }
-
     _transitioning = false;
   }
 
   Future<void> _nextTrack() async {
     if (_transitioning) return;
     _transitioning = true;
-
-    final repo   = context.read<PlaylistRepository>();
+    final repo = context.read<PlaylistRepository>();
     final player = context.read<PlayerModel>();
-    final pid    = repo.selectedPlaylistId;
+    final pid = repo.selectedPlaylistId;
     if (pid != null) {
-      final pl    = repo.playlists.firstWhere((p) => p.id == pid);
+      final pl = repo.playlists.firstWhere((p) => p.id == pid);
       final songs = pl.songPaths;
       if (songs.isNotEmpty) {
         String pick;
         if (_shuffle) {
-          final counts   = pl.playCounts;
+          final counts = pl.playCounts;
           final minCount = songs.map((s) => counts[s] ?? 0).reduce(min);
-          final candidates =
-              songs.where((s) => (counts[s] ?? 0) == minCount).toList();
+          final candidates = songs.where((s) => (counts[s] ?? 0) == minCount).toList();
           pick = candidates[Random().nextInt(candidates.length)];
         } else {
-          final idx    = player.currentPath != null
-              ? songs.indexOf(player.currentPath!)
-              : -1;
-          final nextIx = (idx >= 0 && idx < songs.length - 1)
-              ? idx + 1
-              : songs.length - 1;
+          final idx = player.currentPath != null ? songs.indexOf(player.currentPath!) : -1;
+          final nextIx = (idx >= 0 && idx < songs.length - 1) ? idx + 1 : songs.length - 1;
           pick = songs[nextIx];
         }
         await player.stop();
@@ -125,11 +108,10 @@ class _PlayerSectionState extends State<PlayerSection> {
         await player.play(pick);
       }
     }
-
     _transitioning = false;
   }
 
-  void _rewind10()  => context.read<PlayerModel>().seekRelative(-10);
+  void _rewind10() => context.read<PlayerModel>().seekRelative(-10);
   void _forward10() => context.read<PlayerModel>().seekRelative(10);
 
   void _toggleShuffle() => setState(() => _shuffle = !_shuffle);
@@ -165,8 +147,8 @@ class _PlayerSectionState extends State<PlayerSection> {
   Widget build(BuildContext context) {
     final player = context.watch<PlayerModel>();
     const brightGreen = Color(0xFF00FF00);
-    final darkGreen   = brightGreen.withAlpha((0.4 * 255).round());
-    const bgColor     = Color(0xFF151515);
+    final darkGreen = brightGreen.withAlpha((0.4 * 255).round());
+    const bgColor = Color(0xFF151515);
 
     String titleText = player.currentPath != null
         ? File(player.currentPath!).uri.pathSegments.last
@@ -182,7 +164,8 @@ class _PlayerSectionState extends State<PlayerSection> {
         children: [
           // Album art or placeholder
           Container(
-            width: 60, height: 60,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               color: const Color(0xFF1F1F1F),
               border: Border.all(color: darkGreen, width: 2),
@@ -193,27 +176,27 @@ class _PlayerSectionState extends State<PlayerSection> {
                     child: SvgPicture.asset(
                       'assets/icons/ph--music-notes-fill.svg',
                       color: brightGreen.withAlpha(128),
-                      width: 32, height: 32,
+                      width: 32,
+                      height: 32,
                     ),
                   ),
           ),
           const SizedBox(width: 16),
 
-          // Track title
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                titleText,
-                style: TextStyle(
-                  color: brightGreen,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
+          // Track title (ellipsis truncation)
+          Expanded(
+            child: Text(
+              titleText,
+              style: TextStyle(
+                color: brightGreen,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
-            ],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
+
           const SizedBox(width: 24),
 
           // Current time
@@ -222,6 +205,7 @@ class _PlayerSectionState extends State<PlayerSection> {
 
           // Seek bar
           Expanded(
+            flex: 2,
             child: Slider(
               activeColor: brightGreen,
               inactiveColor: darkGreen,
@@ -237,42 +221,33 @@ class _PlayerSectionState extends State<PlayerSection> {
           Text(_formatTime(player.duration), style: TextStyle(color: brightGreen)),
           const SizedBox(width: 24),
 
-          // Controls
+          // Controls...
           IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/ph--skip-back-fill.svg',
-              color: brightGreen, width: 24, height: 24,
-            ),
+            icon: SvgPicture.asset('assets/icons/ph--skip-back-fill.svg', color: brightGreen, width: 24, height: 24),
             onPressed: _prevTrack,
           ),
           IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/ph--rewind-fill.svg',
-              color: brightGreen, width: 24, height: 24,
-            ),
+            icon: SvgPicture.asset('assets/icons/ph--rewind-fill.svg', color: brightGreen, width: 24, height: 24),
             onPressed: _rewind10,
           ),
           IconButton(
             icon: SvgPicture.asset(
-              player.isPlaying
-                  ? 'assets/icons/ph--pause-circle-bold.svg'
-                  : 'assets/icons/ph--play-circle-bold.svg',
+              player.isPlaying ? 'assets/icons/ph--pause-circle-bold.svg' : 'assets/icons/ph--play-circle-bold.svg',
               color: brightGreen, width: 32, height: 32,
             ),
             onPressed: () async {
               if (player.currentPath == null) {
                 final repo = context.read<PlaylistRepository>();
-                final pid  = repo.selectedPlaylistId;
+                final pid = repo.selectedPlaylistId;
                 if (pid != null) {
-                  final pl    = repo.playlists.firstWhere((p) => p.id == pid);
+                  final pl = repo.playlists.firstWhere((p) => p.id == pid);
                   final songs = pl.songPaths;
                   if (songs.isNotEmpty) {
                     String pick;
                     if (_shuffle) {
-                      final counts   = pl.playCounts;
+                      final counts = pl.playCounts;
                       final minCount = songs.map((s) => counts[s] ?? 0).reduce(min);
-                      final candidates =
-                          songs.where((s) => (counts[s] ?? 0) == minCount).toList();
+                      final candidates = songs.where((s) => (counts[s] ?? 0) == minCount).toList();
                       pick = candidates[Random().nextInt(candidates.length)];
                     } else {
                       pick = songs.first;
@@ -286,17 +261,11 @@ class _PlayerSectionState extends State<PlayerSection> {
             },
           ),
           IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/ph--fast-forward-fill.svg',
-              color: brightGreen, width: 24, height: 24,
-            ),
+            icon: SvgPicture.asset('assets/icons/ph--fast-forward-fill.svg', color: brightGreen, width: 24, height: 24),
             onPressed: _forward10,
           ),
           IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/ph--skip-forward-fill.svg',
-              color: brightGreen, width: 24, height: 24,
-            ),
+            icon: SvgPicture.asset('assets/icons/ph--skip-forward-fill.svg', color: brightGreen, width: 24, height: 24),
             onPressed: _nextTrack,
           ),
 
@@ -305,9 +274,7 @@ class _PlayerSectionState extends State<PlayerSection> {
           // Shuffle toggle
           IconButton(
             icon: SvgPicture.asset(
-              _shuffle
-                  ? 'assets/icons/ph--shuffle-bold.svg'
-                  : 'assets/icons/ph--shuffle-off-bold.svg',
+              _shuffle ? 'assets/icons/ph--shuffle-bold.svg' : 'assets/icons/ph--shuffle-off-bold.svg',
               color: _shuffle ? brightGreen : darkGreen,
               width: 24, height: 24,
             ),
@@ -322,11 +289,7 @@ class _PlayerSectionState extends State<PlayerSection> {
             child: IconButton(
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints.tightFor(width: 24, height: 24),
-              icon: SvgPicture.asset(
-                _speakerAsset,
-                color: brightGreen,
-                width: 24, height: 24,
-              ),
+              icon: SvgPicture.asset(_speakerAsset, color: brightGreen, width: 24, height: 24),
               onPressed: _toggleMute,
             ),
           ),
