@@ -1,3 +1,5 @@
+// lib/screens/library_section.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -11,10 +13,9 @@ class LibrarySection extends StatefulWidget {
 class _LibrarySectionState extends State<LibrarySection> {
   final TextEditingController _searchController = TextEditingController();
 
-  // these can’t both be const if one uses withAlpha((0.4 * 255).round());
   static const Color brightGreen = Color(0xFF00FF00);
-  late final Color darkGreen = brightGreen.withAlpha((0.4 * 255).round());
-  static const Color sectionBg = Color(0xFF1F1F1F);
+  late final Color darkGreen   = brightGreen.withAlpha((0.4 * 255).round());
+  static const Color sectionBg  = Color(0xFF1F1F1F);
 
   bool _gridView = true;
 
@@ -27,7 +28,7 @@ class _LibrarySectionState extends State<LibrarySection> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: sectionBg, // no top/bottom borders
+      color: sectionBg,
       padding: const EdgeInsets.all(10),
       child: Column(
         children: [
@@ -73,7 +74,7 @@ class _LibrarySectionState extends State<LibrarySection> {
 
           const SizedBox(height: 8),
 
-          // SEARCH BAR with fillColor = 0xFF151515
+          // SEARCH BAR
           TextField(
             controller: _searchController,
             style: const TextStyle(color: brightGreen),
@@ -99,16 +100,17 @@ class _LibrarySectionState extends State<LibrarySection> {
           const SizedBox(height: 12),
 
           // placeholder for your grid/list
-          Expanded(child: Container()),
+          const Expanded(child: SizedBox()),
 
-          // ADD FOLDER BUTTON in center
-          // Add folder-pick + recursive scan later
+          // ADD FOLDER BUTTON
           Center(
             child: InkWell(
               onTap: () {
+                // future: folder picker & scan
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

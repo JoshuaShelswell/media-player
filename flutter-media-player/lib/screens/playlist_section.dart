@@ -1,3 +1,5 @@
+// lib/screens/playlist_section.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
@@ -58,12 +60,10 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                   icon: const Icon(Icons.add),
                   color: brightGreen,
                   onPressed: () async {
-                    // grab repo now, before the async gap
                     final repo = context.read<PlaylistRepository>();
-
-                    final result = await showDialog<String>(
+                    final name = await showDialog<String>(
                       context: context,
-                      builder: (dialogCtx) => AlertDialog(
+                      builder: (ctx) => AlertDialog(
                         backgroundColor: Colors.black,
                         title: const Text(
                           'Add Playlist',
@@ -75,14 +75,13 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                           decoration: InputDecoration(
                             hintText: 'Playlist name',
                             hintStyle: TextStyle(
-                              color: brightGreen.withAlpha(
-                                  (0.7 * 255).round()),
+                              color: brightGreen.withAlpha((0.7 * 255).round()),
                             ),
                           ),
                         ),
                         actions: [
                           TextButton(
-                            onPressed: () => Navigator.pop(dialogCtx),
+                            onPressed: () => Navigator.pop(ctx),
                             child: const Text(
                               'Cancel',
                               style: TextStyle(color: brightGreen),
@@ -90,9 +89,8 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                           ),
                           TextButton(
                             onPressed: () {
-                              final name =
-                                  _playlistController.text.trim();
-                              Navigator.pop(dialogCtx, name);
+                              final txt = _playlistController.text.trim();
+                              Navigator.pop(ctx, txt);
                             },
                             child: const Text(
                               'Add',
@@ -102,10 +100,8 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                         ],
                       ),
                     );
-
-                    if (!mounted) return;
-                    if (result != null && result.isNotEmpty) {
-                      repo.addPlaylist(result);
+                    if (name != null && name.isNotEmpty) {
+                      repo.addPlaylist(name);
                       _playlistController.clear();
                     }
                   },
@@ -121,13 +117,9 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                 return ListView.builder(
                   itemCount: repo.playlists.length,
                   itemBuilder: (context, index) {
-                    final playlist = repo.playlists[index];
-                    final isSelected =
-                        repo.selectedPlaylistId == playlist.id;
-                    return _PlaylistTile(
-                      playlist: playlist,
-                      selected: isSelected,
-                    );
+                    final pl = repo.playlists[index];
+                    final sel = repo.selectedPlaylistId == pl.id;
+                    return _PlaylistTile(playlist: pl, selected: sel);
                   },
                 );
               },
@@ -141,12 +133,8 @@ class _PlaylistSectionState extends State<PlaylistSection> {
 
 class _PlaylistTile extends StatefulWidget {
   final Playlist playlist;
-  final bool selected;
-
-  const _PlaylistTile({
-    required this.playlist,
-    required this.selected,
-  });
+  final bool     selected;
+  const _PlaylistTile({required this.playlist, required this.selected});
 
   @override
   State<_PlaylistTile> createState() => __PlaylistTileState();
@@ -160,37 +148,28 @@ class __PlaylistTileState extends State<_PlaylistTile> {
   Widget build(BuildContext context) {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
+      onExit:  (_) => setState(() => _hovering = false),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: widget.selected
             ? BoxDecoration(
-                color:
-                    brightGreen.withAlpha((0.15 * 255).round()),
-              )
+                color: brightGreen.withAlpha((0.15 * 255).round()))
             : null,
         child: ListTile(
-          title: Text(
-            widget.playlist.name,
-            style: const TextStyle(color: brightGreen),
-          ),
+          title: Text(widget.playlist.name,
+              style: const TextStyle(color: brightGreen)),
           trailing: _hovering
               ? InkWell(
-                  onTap: () {
-                    // safe to call context here immediately
-                    context
-                        .read<PlaylistRepository>()
-                        .deletePlaylist(widget.playlist.id);
-                  },
+                  onTap: () => context
+                      .read<PlaylistRepository>()
+                      .deletePlaylist(widget.playlist.id),
                   child:
                       const Icon(Icons.close, color: Colors.red, size: 18),
                 )
               : null,
-          onTap: () {
-            context
-                .read<PlaylistRepository>()
-                .selectPlaylist(widget.playlist.id);
-          },
+          onTap: () => context
+              .read<PlaylistRepository>()
+              .selectPlaylist(widget.playlist.id),
         ),
       ),
     );
