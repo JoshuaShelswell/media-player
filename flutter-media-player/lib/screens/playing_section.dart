@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
+import 'package:path/path.dart' show extension;
 
 import '../services/playlist_repository.dart';
 import '../services/player_model.dart';
@@ -21,6 +22,10 @@ class _PlayingSectionState extends State<PlayingSection> {
   List<String> droppedFiles = [];
   int? _hoveredIndex;
   bool _wasPlaying = false;
+
+  static const _supportedExts = {
+    '.mp3', '.aac', '.flac', '.wav', '.ogg', '.m4a', '.wma', '.alac', '.opus'
+  };
 
   @override
   void initState() {
@@ -63,11 +68,11 @@ class _PlayingSectionState extends State<PlayingSection> {
     final darkGreen   = brightGreen.withAlpha((0.4 * 255).round());
     const sectionBg   = Color(0xFF151515);
 
-    final repo     = context.watch<PlaylistRepository>();
-    final selected = repo.selectedPlaylistId != null
+    final repo      = context.watch<PlaylistRepository>();
+    final selected  = repo.selectedPlaylistId != null
         ? repo.playlists.firstWhere((p) => p.id == repo.selectedPlaylistId)
         : null;
-    final songs    = selected?.songPaths ?? droppedFiles;
+    final songs     = selected?.songPaths ?? droppedFiles;
     final trackCount = songs.length;
 
     final player  = context.watch<PlayerModel>();
@@ -75,7 +80,11 @@ class _PlayingSectionState extends State<PlayingSection> {
 
     return DropTarget(
       onDragDone: (details) {
-        final paths = details.files.map((f) => f.path).toList();
+        final paths = <String>[];
+        for (var f in details.files) {
+          final ext = extension(f.path).toLowerCase();
+          if (_supportedExts.contains(ext)) paths.add(f.path);
+        }
         if (selected != null && selected.id.isNotEmpty) {
           for (var p in paths) {
             selected.songPaths.add(p);
@@ -98,7 +107,7 @@ class _PlayingSectionState extends State<PlayingSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with dynamic track count
+            // Header
             Padding(
               padding: const EdgeInsets.all(10),
               child: SizedBox(
@@ -107,9 +116,7 @@ class _PlayingSectionState extends State<PlayingSection> {
                   children: [
                     SvgPicture.asset(
                       'assets/icons/ph--music-notes-fill.svg',
-                      width: 20,
-                      height: 20,
-                      color: brightGreen,
+                      width: 20, height: 20, color: brightGreen,
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -149,14 +156,9 @@ class _PlayingSectionState extends State<PlayingSection> {
                           onEnter: (_) => setState(() => _hoveredIndex = i),
                           onExit:  (_) => setState(() => _hoveredIndex = null),
                           child: Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: isCurrent
-                                ? BoxDecoration(
-                                    color: brightGreen.withAlpha(
-                                        (0.15 * 255).round()),
-                                  )
+                                ? BoxDecoration(color: brightGreen.withAlpha(38))
                                 : null,
                             child: ListTile(
                               title: Row(
@@ -164,16 +166,15 @@ class _PlayingSectionState extends State<PlayingSection> {
                                   Expanded(
                                     child: Text(
                                       title,
-                                      style: TextStyle(
-                                          color: brightGreen, fontSize: 14),
+                                      style: TextStyle(color: brightGreen, fontSize: 14),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
                                     '(played $count)',
-                                    style: TextStyle(
-                                        color: brightGreen.withAlpha(180),
-                                        fontSize: 14),
+                                    style: TextStyle(color: brightGreen.withAlpha(180), fontSize: 14),
                                   ),
                                 ],
                               ),
@@ -192,11 +193,7 @@ class _PlayingSectionState extends State<PlayingSection> {
                                           }
                                         });
                                       },
-                                      child: const Icon(
-                                        Icons.close,
-                                        color: Colors.red,
-                                        size: 18,
-                                      ),
+                                      child: const Icon(Icons.close, color: Colors.red, size: 18),
                                     )
                                   : null,
                             ),
