@@ -26,6 +26,7 @@ class _PlayerSectionState extends State<PlayerSection> {
   @override
   void initState() {
     super.initState();
+    _shuffle = false; // ensure off on startup
     context.read<PlayerModel>().addListener(_onTrackChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _onTrackChanged());
   }
@@ -43,9 +44,7 @@ class _PlayerSectionState extends State<PlayerSection> {
       final dir = File(current).parent;
       try {
         for (var f in dir.listSync()) {
-          if (f is File &&
-              RegExp(r'\.(jpg|png|jpeg)$', caseSensitive: false)
-                  .hasMatch(f.path)) {
+          if (f is File && RegExp(r'\.(jpg|png|jpeg)$', caseSensitive: false).hasMatch(f.path)) {
             found = f.path;
             break;
           }
@@ -56,49 +55,41 @@ class _PlayerSectionState extends State<PlayerSection> {
   }
 
   Future<void> _prevTrack() async {
-    final repo = context.read<PlaylistRepository>();
+    final repo   = context.read<PlaylistRepository>();
     final player = context.read<PlayerModel>();
-    final playlistId = repo.selectedPlaylistId;
-    if (playlistId == null) return;
-    final playlist = repo.playlists.firstWhere((p) => p.id == playlistId);
-    final songs = playlist.songPaths;
+    final pid    = repo.selectedPlaylistId;
+    if (pid == null) return;
+    final pl    = repo.playlists.firstWhere((p) => p.id == pid);
+    final songs = pl.songPaths;
     if (songs.isEmpty) return;
 
-    String pick;
-    if (_shuffle) {
-      pick = songs[Random().nextInt(songs.length)];
-    } else {
-      final idx = player.currentPath != null
-          ? songs.indexOf(player.currentPath!)
-          : -1;
-      final prevIdx = idx > 0 ? idx - 1 : 0;
-      pick = songs[prevIdx];
-    }
+    final pick = _shuffle
+      ? songs[Random().nextInt(songs.length)]
+      : (() {
+          final idx = player.currentPath != null ? songs.indexOf(player.currentPath!) : -1;
+          return songs[(idx > 0 ? idx - 1 : 0)];
+        })();
 
     await player.stop();
     await player.play(pick);
   }
 
   Future<void> _nextTrack() async {
-    final repo = context.read<PlaylistRepository>();
+    final repo   = context.read<PlaylistRepository>();
     final player = context.read<PlayerModel>();
-    final playlistId = repo.selectedPlaylistId;
-    if (playlistId == null) return;
-    final playlist = repo.playlists.firstWhere((p) => p.id == playlistId);
-    final songs = playlist.songPaths;
+    final pid    = repo.selectedPlaylistId;
+    if (pid == null) return;
+    final pl    = repo.playlists.firstWhere((p) => p.id == pid);
+    final songs = pl.songPaths;
     if (songs.isEmpty) return;
 
-    String pick;
-    if (_shuffle) {
-      pick = songs[Random().nextInt(songs.length)];
-    } else {
-      final idx = player.currentPath != null
-          ? songs.indexOf(player.currentPath!)
-          : -1;
-      final nextIdx =
-          (idx >= 0 && idx < songs.length - 1) ? idx + 1 : songs.length - 1;
-      pick = songs[nextIdx];
-    }
+    final pick = _shuffle
+      ? songs[Random().nextInt(songs.length)]
+      : (() {
+          final idx = player.currentPath != null ? songs.indexOf(player.currentPath!) : -1;
+          final next = (idx >= 0 && idx < songs.length - 1) ? idx + 1 : songs.length - 1;
+          return songs[next];
+        })();
 
     await player.stop();
     await player.play(pick);
@@ -107,9 +98,7 @@ class _PlayerSectionState extends State<PlayerSection> {
   void _rewind10()  => context.read<PlayerModel>().seekRelative(-10);
   void _forward10() => context.read<PlayerModel>().seekRelative(10);
 
-  void _toggleShuffle() {
-    setState(() => _shuffle = !_shuffle);
-  }
+  void _toggleShuffle() => setState(() => _shuffle = !_shuffle);
 
   String get _speakerAsset {
     if (_muted) return 'assets/icons/ph--speaker-x-fill.svg';
@@ -121,8 +110,7 @@ class _PlayerSectionState extends State<PlayerSection> {
 
   void _toggleMute() {
     setState(() => _muted = !_muted);
-    final vol = _muted ? 0.0 : _volume;
-    context.read<PlayerModel>().setVolume(vol);
+    context.read<PlayerModel>().setVolume(_muted ? 0.0 : _volume);
   }
 
   void _onVolumeChanged(double v) {
@@ -142,13 +130,13 @@ class _PlayerSectionState extends State<PlayerSection> {
   @override
   Widget build(BuildContext context) {
     final player = context.watch<PlayerModel>();
-    final brightGreen = const Color(0xFF00FF00);
+    const brightGreen = Color(0xFF00FF00);
     final darkGreen   = brightGreen.withAlpha((0.4 * 255).round());
-    final bgColor     = const Color(0xFF151515);
+    const bgColor     = Color(0xFF151515);
 
     String titleText = player.currentPath != null
-        ? File(player.currentPath!).uri.pathSegments.last
-        : 'Media Player';
+      ? File(player.currentPath!).uri.pathSegments.last
+      : 'Media Player';
 
     return Container(
       decoration: BoxDecoration(
@@ -156,179 +144,147 @@ class _PlayerSectionState extends State<PlayerSection> {
         border: Border(bottom: BorderSide(color: darkGreen, width: 2)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          // Album art or placeholder
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1F1F1F),
-              border: Border.all(color: darkGreen, width: 2),
-            ),
-            child: _albumArtPath != null
-                ? Image.file(File(_albumArtPath!), fit: BoxFit.cover)
-                : Center(
-                    child: SvgPicture.asset(
-                      'assets/icons/ph--music-notes-fill.svg',
-                      color: brightGreen.withAlpha((0.5 * 255).round()),
-                      width: 32,
-                      height: 32,
-                    ),
-                  ),
+      child: Row(children: [
+        // Album art or placeholder
+        Container(
+          width: 60, height: 60,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1F1F1F),
+            border: Border.all(color: darkGreen, width: 2),
           ),
-          const SizedBox(width: 16),
-
-          // Track title
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                titleText,
-                style: TextStyle(
-                  color: brightGreen,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+          child: _albumArtPath != null
+            ? Image.file(File(_albumArtPath!), fit: BoxFit.cover)
+            : Center(
+                child: SvgPicture.asset(
+                  'assets/icons/ph--music-notes-fill.svg',
+                  color: brightGreen.withAlpha((0.5 * 255).round()),
+                  width: 32, height: 32,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(width: 24),
+        ),
+        const SizedBox(width: 16),
 
-          // Current time
-          Text(_formatTime(player.position),
-              style: TextStyle(color: brightGreen)),
-          const SizedBox(width: 8),
-
-          // Seek bar
-          Expanded(
-            child: Slider(
-              activeColor: brightGreen,
-              inactiveColor: darkGreen,
-              min: 0,
-              max: player.duration > 0 ? player.duration : 1,
-              value: player.position.clamp(0, player.duration),
-              onChanged: (v) => context.read<PlayerModel>().seek(v),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Total duration
-          Text(_formatTime(player.duration),
-              style: TextStyle(color: brightGreen)),
-          const SizedBox(width: 24),
-
-          // Prev / rewind / play/pause / forward / next
-          IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/ph--skip-back-fill.svg',
-              color: brightGreen,
-              width: 24,
-              height: 24,
-            ),
-            onPressed: _prevTrack,
-          ),
-          IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/ph--rewind-fill.svg',
-              color: brightGreen,
-              width: 24,
-              height: 24,
-            ),
-            onPressed: _rewind10,
-          ),
-          IconButton(
-            icon: SvgPicture.asset(
-              player.isPlaying
-                  ? 'assets/icons/ph--pause-circle-bold.svg'
-                  : 'assets/icons/ph--play-circle-bold.svg',
-              color: brightGreen,
-              width: 32,
-              height: 32,
-            ),
-            onPressed: () async {
-              if (player.currentPath == null) {
-                // No track loaded: pick first or random
-                final repo = context.read<PlaylistRepository>();
-                final pid = repo.selectedPlaylistId;
-                if (pid != null) {
-                  final pl = repo.playlists.firstWhere((p) => p.id == pid);
-                  if (pl.songPaths.isNotEmpty) {
-                    final pick = _shuffle
-                        ? pl.songPaths[Random().nextInt(pl.songPaths.length)]
-                        : pl.songPaths.first;
-                    await context.read<PlayerModel>().play(pick);
-                  }
-                }
-              } else {
-                await context.read<PlayerModel>().togglePause();
-              }
-            },
-          ),
-          IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/ph--fast-forward-fill.svg',
-              color: brightGreen,
-              width: 24,
-              height: 24,
-            ),
-            onPressed: _forward10,
-          ),
-          IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/ph--skip-forward-fill.svg',
-              color: brightGreen,
-              width: 24,
-              height: 24,
-            ),
-            onPressed: _nextTrack,
-          ),
-
-          const SizedBox(width: 16),
-
-          // Shuffle toggle
-          IconButton(
-            icon: SvgPicture.asset(
-              _shuffle
-                  ? 'assets/icons/ph--shuffle-bold.svg'
-                  : 'assets/icons/ph--shuffle-off-bold.svg',
-              color: brightGreen,
-              width: 24,
-              height: 24,
-            ),
-            onPressed: _toggleShuffle,
-          ),
-
-          const SizedBox(width: 24),
-
-          // Mute / volume
-          Transform.translate(
-            offset: const Offset(8, 0),
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              constraints:
-                  const BoxConstraints.tightFor(width: 24, height: 24),
-              icon: SvgPicture.asset(
-                _speakerAsset,
+        // Track title
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(titleText,
+              style: TextStyle(
                 color: brightGreen,
-                width: 24,
-                height: 24,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
-              onPressed: _toggleMute,
             ),
+          ],
+        ),
+        const SizedBox(width: 24),
+
+        // Time / seek bar / duration
+        Text(_formatTime(player.position),
+          style: TextStyle(color: brightGreen)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Slider(
+            activeColor: brightGreen,
+            inactiveColor: darkGreen,
+            min: 0,
+            max: player.duration > 0 ? player.duration : 1,
+            value: player.position.clamp(0, player.duration),
+            onChanged: (v) => context.read<PlayerModel>().seek(v),
           ),
-          SizedBox(
-            width: 200,
-            child: Slider(
-              activeColor: brightGreen,
-              inactiveColor: darkGreen,
-              value: _muted ? 0 : _volume,
-              onChanged: _onVolumeChanged,
+        ),
+        const SizedBox(width: 8),
+        Text(_formatTime(player.duration),
+          style: TextStyle(color: brightGreen)),
+        const SizedBox(width: 24),
+
+        // Prev / rewind / play-pause / forward / next
+        IconButton(
+          icon: SvgPicture.asset('assets/icons/ph--skip-back-fill.svg',
+            color: brightGreen, width: 24, height: 24),
+          onPressed: _prevTrack,
+        ),
+        IconButton(
+          icon: SvgPicture.asset('assets/icons/ph--rewind-fill.svg',
+            color: brightGreen, width: 24, height: 24),
+          onPressed: _rewind10,
+        ),
+        IconButton(
+          icon: SvgPicture.asset(
+            player.isPlaying
+              ? 'assets/icons/ph--pause-circle-bold.svg'
+              : 'assets/icons/ph--play-circle-bold.svg',
+            color: brightGreen, width: 32, height: 32),
+          onPressed: () async {
+            if (player.currentPath == null) {
+              final repo = context.read<PlaylistRepository>();
+              final pid  = repo.selectedPlaylistId;
+              if (pid != null) {
+                final pl = repo.playlists.firstWhere((p) => p.id == pid);
+                if (pl.songPaths.isNotEmpty) {
+                  final pick = _shuffle
+                    ? pl.songPaths[Random().nextInt(pl.songPaths.length)]
+                    : pl.songPaths.first;
+                  await context.read<PlayerModel>().play(pick);
+                }
+              }
+            } else {
+              await context.read<PlayerModel>().togglePause();
+            }
+          },
+        ),
+        IconButton(
+          icon: SvgPicture.asset('assets/icons/ph--fast-forward-fill.svg',
+            color: brightGreen, width: 24, height: 24),
+          onPressed: _forward10,
+        ),
+        IconButton(
+          icon: SvgPicture.asset('assets/icons/ph--skip-forward-fill.svg',
+            color: brightGreen, width: 24, height: 24),
+          onPressed: _nextTrack,
+        ),
+
+        const SizedBox(width: 16),
+
+        // Shuffle toggle (off = darkGreen, on = brightGreen)
+        IconButton(
+          icon: SvgPicture.asset(
+            _shuffle
+              ? 'assets/icons/ph--shuffle-bold.svg'
+              : 'assets/icons/ph--shuffle-off-bold.svg',
+            color: _shuffle ? brightGreen : darkGreen,
+            width: 24, height: 24,
+          ),
+          onPressed: _toggleShuffle,
+        ),
+
+        const SizedBox(width: 24),
+
+        // Mute / Volume
+        Transform.translate(
+          offset: const Offset(8, 0),
+          child: IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+            icon: SvgPicture.asset(
+              _speakerAsset,
+              color: brightGreen,
+              width: 24, height: 24,
             ),
+            onPressed: _toggleMute,
           ),
-        ],
-      ),
+        ),
+        SizedBox(
+          width: 200,
+          child: Slider(
+            activeColor: brightGreen,
+            inactiveColor: darkGreen,
+            value: _muted ? 0 : _volume,
+            onChanged: _onVolumeChanged,
+          ),
+        ),
+      ]),
     );
   }
 }
