@@ -8,7 +8,6 @@ pub mod device;
 pub mod diagnostics;
 pub mod position;
 pub mod state;
-pub mod resampler;
 
 // We only re‑export what our `lib.rs` actually uses.
 // All other public items (e.g. AudioRingBuffer, PlayerState, etc.)
