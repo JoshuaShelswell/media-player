@@ -1,17 +1,20 @@
 // rust-engine/src/audio/mod.rs
 
+//! Top‑level module definitions for the `audio` crate.
+
 pub mod buffer;
 pub mod decoder;
 pub mod device;
 pub mod diagnostics;
 pub mod position;
-pub mod resampler;
 pub mod state;
+pub mod resampler;
 
-// Re-export key types for convenience
-pub use buffer::AudioRingBuffer;
-pub use position::PlaybackPosition;
-pub use state::{PlayerState, PlaybackStatus};
+// We only re‑export what our `lib.rs` actually uses.
+// All other public items (e.g. AudioRingBuffer, PlayerState, etc.)
+// are re‑exported from the root `lib.rs`.
 
-// You may also choose to re-export decoder functions if needed:
-pub use decoder::{initialize_ffmpeg, get_supported_extensions, is_supported_audio_format, play_audio_file};
+// No `pub use buffer::AudioRingBuffer;` here
+// No `pub use position::PlaybackPosition;` here
+// No `pub use state::{PlayerState, PlaybackStatus};` here
+// No `pub use decoder::{initialize_ffmpeg, ... , play_audio_file};` here
