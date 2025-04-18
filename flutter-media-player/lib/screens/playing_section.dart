@@ -86,19 +86,26 @@ class _PlayingSectionState extends State<PlayingSection> {
                       ),
                     )
                   : ListView.builder(
-                      itemCount:
-                          songs.isNotEmpty ? songs.length : droppedFiles.length,
+                      itemCount: songs.isNotEmpty
+                          ? songs.length
+                          : droppedFiles.length,
                       itemBuilder: (_, i) {
-                        final track =
-                            songs.isNotEmpty ? songs[i] : droppedFiles[i];
+                        final track = songs.isNotEmpty
+                            ? songs[i]
+                            : droppedFiles[i];
                         return MouseRegion(
                           cursor: SystemMouseCursors.click,
                           child: ListTile(
-                            title: Text(track,
-                                style: TextStyle(color: brightGreen)),
-                            onTap: () {
-                              // Play via PlayerModel (which also drives bottom bar)
-                              context.read<PlayerModel>().play(track);
+                            title: Text(
+                              track,
+                              style: TextStyle(color: brightGreen),
+                            ),
+                            onTap: () async {
+                              final player =
+                                  context.read<PlayerModel>();
+                              // stop any current playback before starting new
+                              await player.stop();
+                              await player.play(track);
                             },
                           ),
                         );
