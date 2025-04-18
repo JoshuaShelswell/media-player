@@ -1,3 +1,5 @@
+// lib/screens/playing_section.dart
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -40,10 +42,8 @@ class _PlayingSectionState extends State<PlayingSection> {
       final pos = model.position;
       final dur = model.duration;
       if (dur > 0 && (pos >= dur - 0.5)) {
-        // increment count
         repo.incrementPlayCount(model.currentPath!);
-        // auto‑advance
-        final pid    = repo.selectedPlaylistId;
+        final pid = repo.selectedPlaylistId;
         if (pid != null) {
           final pl    = repo.playlists.firstWhere((p) => p.id == pid);
           final songs = pl.songPaths;
@@ -68,6 +68,7 @@ class _PlayingSectionState extends State<PlayingSection> {
         ? repo.playlists.firstWhere((p) => p.id == repo.selectedPlaylistId)
         : null;
     final songs    = selected?.songPaths ?? droppedFiles;
+    final trackCount = songs.length;
 
     final player  = context.watch<PlayerModel>();
     final current = player.currentPath;
@@ -76,8 +77,8 @@ class _PlayingSectionState extends State<PlayingSection> {
       onDragDone: (details) {
         final paths = details.files.map((f) => f.path).toList();
         if (selected != null && selected.id.isNotEmpty) {
-          selected.songPaths.addAll(paths);
           for (var p in paths) {
+            selected.songPaths.add(p);
             selected.playCounts[p] = 0;
           }
           repo.savePlaylists();
@@ -97,7 +98,7 @@ class _PlayingSectionState extends State<PlayingSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // header
+            // Header with dynamic track count
             Padding(
               padding: const EdgeInsets.all(10),
               child: SizedBox(
@@ -111,9 +112,9 @@ class _PlayingSectionState extends State<PlayingSection> {
                       color: brightGreen,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Now Playing',
-                      style: TextStyle(
+                    Text(
+                      'Now Playing (tracks $trackCount)',
+                      style: const TextStyle(
                         color: brightGreen,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -124,7 +125,7 @@ class _PlayingSectionState extends State<PlayingSection> {
               ),
             ),
 
-            // track list
+            // Track list
             Expanded(
               child: songs.isEmpty
                   ? Center(
@@ -154,8 +155,7 @@ class _PlayingSectionState extends State<PlayingSection> {
                             decoration: isCurrent
                                 ? BoxDecoration(
                                     color: brightGreen.withAlpha(
-                                      (0.15 * 255).round(),
-                                    ),
+                                        (0.15 * 255).round()),
                                   )
                                 : null,
                             child: ListTile(
