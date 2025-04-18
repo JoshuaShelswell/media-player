@@ -66,7 +66,7 @@ class _PlayingSectionState extends State<PlayingSection> {
             Padding(
               padding: const EdgeInsets.all(10),
               child: SizedBox(
-                height: 48,
+                height: 40,
                 child: Row(
                   children: [
                     SvgPicture.asset(
