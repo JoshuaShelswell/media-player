@@ -74,23 +74,24 @@ class AudioPlayer extends ChangeNotifier {
       .asFunction();
 
   Future<void> play(String path) async {
+    // ensure previous playback is fully stopped
     await stop();
+    // give the Rust decoder a moment to see the stop flag and exit
+    await Future.delayed(const Duration(milliseconds: 100));
 
     _currentPath = path;
     _isPlaying   = true;
     notifyListeners();
 
-    // Keep a local port reference to avoid a race
     final port = ReceivePort();
     _exitPort = port;
     port.listen((_) {
-      // on-exit callback from isolate
       _isPlaying = false;
       _pollTimer?.cancel();
       notifyListeners();
-      port.close();      // close this local port
+      port.close();
       if (_exitPort == port) {
-        _exitPort = null; // only null if we hadn't already replaced
+        _exitPort = null;
       }
     });
 
@@ -124,18 +125,15 @@ class AudioPlayer extends ChangeNotifier {
   }
 
   Future<void> stop() async {
-    // signal native stop and kill isolate
     if (_playIso != null) {
       _stopFFI();
       _playIso!.kill(priority: Isolate.immediate);
       _playIso = null;
     }
 
-    // cancel polling
     _pollTimer?.cancel();
     _pollTimer = null;
 
-    // close exitPort if still open
     _exitPort?.close();
     _exitPort = null;
 
