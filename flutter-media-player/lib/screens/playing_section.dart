@@ -23,9 +23,9 @@ class _PlayingSectionState extends State<PlayingSection> {
 
   @override
   Widget build(BuildContext context) {
-    final brightGreen = const Color(0xFF00FF00);
-    final darkGreen = brightGreen.withAlpha((0.4 * 255).round());
-    final sectionBg = const Color(0xFF151515);
+    const Color brightGreen = Color(0xFF00FF00);
+    final Color darkGreen = brightGreen.withAlpha((0.4 * 255).round());
+    const Color sectionBg = Color(0xFF151515);
 
     final repo = context.watch<PlaylistRepository>();
     final selected = repo.selectedPlaylistId != null
@@ -52,7 +52,6 @@ class _PlayingSectionState extends State<PlayingSection> {
         });
       },
       child: Container(
-        width: double.infinity,
         decoration: BoxDecoration(
           color: sectionBg,
           border: Border(
@@ -63,32 +62,34 @@ class _PlayingSectionState extends State<PlayingSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with consistent padding
+            // HEADER (10px inset, 48px tall)
             Padding(
               padding: const EdgeInsets.all(10),
-              child: Row(
-                children: [
-                  SvgPicture.asset(
-                    'assets/icons/ph--music-notes-fill.svg',
-                    width: 20,
-                    height: 20,
-                    color: brightGreen,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Now Playing',
-                    style: TextStyle(
+              child: SizedBox(
+                height: 48,
+                child: Row(
+                  children: [
+                    SvgPicture.asset(
+                      'assets/icons/ph--music-notes-fill.svg',
+                      width: 20,
+                      height: 20,
                       color: brightGreen,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Now Playing',
+                      style: TextStyle(
+                        color: brightGreen,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 8),
 
-            // Track list
+            // TRACK LIST
             Expanded(
               child: (songs.isEmpty && droppedFiles.isEmpty)
                   ? Center(
@@ -103,18 +104,17 @@ class _PlayingSectionState extends State<PlayingSection> {
                           ? songs.length
                           : droppedFiles.length,
                       itemBuilder: (context, i) {
-                        final track =
-                            songs.isNotEmpty ? songs[i] : droppedFiles[i];
-                        // Only show the file name
+                        final track = songs.isNotEmpty
+                            ? songs[i]
+                            : droppedFiles[i];
                         final title = File(track).uri.pathSegments.last;
-
                         final isCurrent = track == current;
                         final isHover = _hoveredIndex == i;
 
                         return MouseRegion(
-                          cursor: SystemMouseCursors.click,
                           onEnter: (_) => setState(() => _hoveredIndex = i),
                           onExit: (_) => setState(() => _hoveredIndex = null),
+                          cursor: SystemMouseCursors.click,
                           child: Container(
                             margin: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
