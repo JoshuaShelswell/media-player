@@ -9,6 +9,14 @@ class PlayerModel extends ChangeNotifier {
   double get position    => _audio.position;
   double get duration    => _audio.duration;
 
+  // ─────────── REPEAT FLAG ───────────
+  bool get repeatEnabled => _repeatEnabled;
+  bool _repeatEnabled = false;
+  void toggleRepeat() {
+    _repeatEnabled = !_repeatEnabled;
+    notifyListeners();
+  }
+
   PlayerModel() {
     _audio.addListener(notifyListeners);
   }
@@ -27,7 +35,7 @@ class PlayerModel extends ChangeNotifier {
   Future<void> stop()                => _audio.stop();
 
   /// Seek to absolute position [seconds].
-  Future<void> seek(double seconds) => _audio.seek(seconds);
+  Future<void> seek(double seconds)  => _audio.seek(seconds);
 
   /// Seek relative by [seconds]; clamped between 0 and duration.
   Future<void> seekRelative(double seconds) async {
@@ -35,6 +43,6 @@ class PlayerModel extends ChangeNotifier {
     return seek(newPos);
   }
 
-  /// Set volume (0.0–1.0).
+  /// Set playback volume (0.0–1.0).
   Future<void> setVolume(double level) => _audio.setVolume(level);
 }
