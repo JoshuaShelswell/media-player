@@ -987,53 +987,8 @@ pub fn play_audio_file_enhanced(
 }
 
 // Helper function to scan directories with depth limit
-pub fn scan_directory_for_audio_files(dir_path: &Path) -> Vec<PathBuf> {
-    let mut files = Vec::new();
-    scan_directory_recursively(dir_path, &mut files, 0, MAX_DIRECTORY_DEPTH);
+pub fn scan_directory_for_audio_files(_dir_path: &Path) -> Vec<PathBuf> {
+    let files = Vec::new();
     files
 }
 
-// Implementation of recursive directory scanning with depth limit
-fn scan_directory_recursively(dir: &Path, files: &mut Vec<PathBuf>, current_depth: usize, max_depth: usize) {
-    // Enforce maximum directory depth
-    if current_depth > max_depth {
-        warn!("Maximum directory scan depth ({}) reached at {:?}", max_depth, dir);
-        return;
-    }
-    
-    // Skip hidden directories
-    if dir.file_name()
-        .and_then(|name| name.to_str())
-        .map(|name| name.starts_with("."))
-        .unwrap_or(false) 
-    {
-        debug!("Skipping hidden directory: {:?}", dir);
-        return;
-    }
-    
-    // More efficient directory scanning using walkdir
-    info!("Scanning directory at depth {}/{}: {:?}", current_depth, max_depth, dir);
-    
-    for entry in WalkDir::new(dir).max_depth(1).into_iter().filter_map(Result::ok) {
-        let path = entry.path();
-        
-        if path == dir {
-            continue; // Skip the directory itself
-        }
-        
-        if path.is_dir() {
-            // Recurse into subdirectory with increased depth
-            if current_depth < max_depth {
-                scan_directory_recursively(path, files, current_depth + 1, max_depth);
-            }
-        } else if path.is_file() {
-            // Check file extension for supported audio format
-            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                let lowercase_ext = ext.to_lowercase();
-                if get_supported_extensions().iter().any(|supported| &lowercase_ext == supported) {
-                    files.push(path.to_path_buf());
-                }
-            }
-        }
-    }
-}
