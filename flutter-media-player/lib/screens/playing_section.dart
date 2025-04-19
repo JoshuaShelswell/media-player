@@ -18,7 +18,8 @@ class PlayingSection extends StatefulWidget {
 class _PlayingSectionState extends State<PlayingSection> {
   final ScrollController _scrollController = ScrollController();
   int? _hoveredIndex;
-  int? _lastScrollIndex; // ← remember last index to avoid re‑scrolling
+  int? _lastScrollIndex;
+  bool _suppressScroll = false; // ← new flag
 
   // height of each tile (including its vertical margin)
   static const double _tileExtent = 56.0;
@@ -51,6 +52,13 @@ class _PlayingSectionState extends State<PlayingSection> {
 
     final idx = songs.indexOf(current);
     if (idx < 0) return;
+
+    // if user just tapped, skip animation (but remember index)
+    if (_suppressScroll) {
+      _lastScrollIndex = idx;
+      _suppressScroll = false;
+      return;
+    }
 
     // only animate when the index actually changes
     if (_lastScrollIndex != idx) {
@@ -124,7 +132,7 @@ class _PlayingSectionState extends State<PlayingSection> {
               ),
             ),
 
-            const SizedBox(height: 8),
+           
 
             // Track list
             Expanded(
@@ -179,6 +187,8 @@ class _PlayingSectionState extends State<PlayingSection> {
                                 ],
                               ),
                               onTap: () async {
+                                // suppress auto‑scroll on manual selection
+                                _suppressScroll = true;
                                 final playerModel = context.read<PlayerModel>();
                                 await playerModel.stop();
                                 if (!mounted) return;

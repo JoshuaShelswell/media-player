@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\Joshua\Documents\Github\media-player\flutter-media-player\windows\flutter\ephemeral\.plugin_symlinks\screen_retriever_windows\windows\screen_retriever_windows_plugin_c_api.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Joshua\Documents\Github\media-player\flutter-media-player\windows\flutter\ephemeral\.plugin_symlinks\screen_retriever_windows\windows\screen_retriever_windows_plugin.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Users\Joshua\Documents\Github\media-player\flutter-media-player\windows\flutter\ephemeral\.plugin_symlinks\screen_retriever_windows\windows\include\screen_retriever_windows\screen_retriever_windows_plugin_c_api.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Joshua\Documents\Github\media-player\flutter-media-player\windows\flutter\ephemeral\.plugin_symlinks\screen_retriever_windows\windows\screen_retriever_windows_plugin.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Joshua\Documents\Github\media-player\flutter-media-player\windows\flutter\ephemeral\.plugin_symlinks\screen_retriever_windows\windows\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{EB80DE19-92B3-3506-985E-D40DCCC5A29D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{117A9371-F382-343B-8302-C75E079A0483}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
