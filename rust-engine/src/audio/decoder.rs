@@ -1,5 +1,5 @@
 // core/src/audio/decoder.rs
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -17,7 +17,6 @@ use ffmpeg_sys_next::AVSampleFormat::AV_SAMPLE_FMT_FLT;
 
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int};
-use walkdir::WalkDir; // Import WalkDir for directory traversal
 
 use crate::audio::buffer::AudioRingBuffer;
 use crate::audio::position::PlaybackPosition;
@@ -30,7 +29,6 @@ static mut FFMPEG_INITIALIZED: bool = false;
 // Define constants for buffer safety
 const MAX_CHANNELS: usize = 8;
 const MAX_BUFFER_SIZE: usize = 16 * 1024 * 1024; // 16MB maximum buffer size
-const MAX_DIRECTORY_DEPTH: usize = 20; // Maximum directory recursion depth
 
 // Helper function to convert C string to Rust string
 unsafe fn to_string(ptr: *const c_char) -> String {
