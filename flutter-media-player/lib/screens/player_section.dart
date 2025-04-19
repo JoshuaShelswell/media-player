@@ -15,9 +15,9 @@ class PlayerSection extends StatefulWidget {
 }
 
 class _PlayerSectionState extends State<PlayerSection> {
-  double  _volume     = 0.75;
-  bool    _muted      = false;
-  bool    _shuffle    = false;
+  double  _volume        = 0.75;
+  bool    _muted         = false;
+  bool    _shuffle       = false;
   String? _albumArtPath;
   bool    _transitioning = false;
 
@@ -50,8 +50,9 @@ class _PlayerSectionState extends State<PlayerSection> {
     if (current != null) {
       final dir = File(current).parent;
       for (final f in dir.listSync()) {
-        if (f is File && RegExp(r'\.(jpg|png|jpeg)$', caseSensitive: false)
-            .hasMatch(f.path)) {
+        if (f is File &&
+            RegExp(r'\.(jpg|png|jpeg)$', caseSensitive: false)
+                .hasMatch(f.path)) {
           found = f.path;
           break;
         }
@@ -60,22 +61,23 @@ class _PlayerSectionState extends State<PlayerSection> {
     setState(() => _albumArtPath = found);
   }
 
-  void _onPlaybackUpdate() {
+  Future<void> _onPlaybackUpdate() async {
     final player  = context.read<PlayerModel>();
     final current = player.currentPath;
     if (current == null) return;
 
     // reset guard on new track
     if (_lastTrackPath != current) {
-      _lastTrackPath            = current;
-      _trackCompleteHandled     = false;
-      _prevIsPlaying            = player.isPlaying;
+      _lastTrackPath        = current;
+      _trackCompleteHandled = false;
+      _prevIsPlaying        = player.isPlaying;
     }
 
-    // detect playing → stopped transition
+    // detect true completion (not just pause), or position == duration
     if (!_trackCompleteHandled
         && _prevIsPlaying
-        && !player.isPlaying) {
+        && !player.isPlaying
+        && (player.completed || player.position >= player.duration - 0.5)) {
       _trackCompleteHandled = true;
 
       // increment play‑count
@@ -87,8 +89,12 @@ class _PlayerSectionState extends State<PlayerSection> {
         repo.savePlaylists();
       }
 
-      // advance
-      _nextTrack();
+      // repeat vs next
+      if (player.repeatEnabled) {
+        await player.play(current);
+      } else {
+        await _nextTrack();
+      }
     }
 
     _prevIsPlaying = player.isPlaying;
@@ -144,7 +150,7 @@ class _PlayerSectionState extends State<PlayerSection> {
               songs.where((s) => (counts[s] ?? 0) == minCount).toList();
           pick = candidates[Random().nextInt(candidates.length)];
         } else {
-          final idx   = player.currentPath != null
+          final idx    = player.currentPath != null
               ? songs.indexOf(player.currentPath!)
               : -1;
           final nextIx = (idx >= 0 && idx < songs.length - 1)
@@ -165,8 +171,8 @@ class _PlayerSectionState extends State<PlayerSection> {
   void _toggleShuffle() => setState(() => _shuffle = !_shuffle);
 
   String get _speakerAsset {
-    if (_muted)       return 'assets/icons/ph--speaker-x-fill.svg';
-    if (_volume == 0) return 'assets/icons/ph--speaker-slash-fill.svg';
+    if (_muted)         return 'assets/icons/ph--speaker-x-fill.svg';
+    if (_volume == 0)   return 'assets/icons/ph--speaker-slash-fill.svg';
     if (_volume <= .25) return 'assets/icons/ph--speaker-none-fill.svg';
     if (_volume <= .5)  return 'assets/icons/ph--speaker-low-fill.svg';
     return 'assets/icons/ph--speaker-high-fill.svg';

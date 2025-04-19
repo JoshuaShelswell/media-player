@@ -6,6 +6,7 @@ class PlayerModel extends ChangeNotifier {
 
   String? get currentPath => _audio.currentPath;
   bool   get isPlaying   => _audio.isPlaying;
+  bool   get completed   => _audio.completed;  // ← New getter
   double get position    => _audio.position;
   double get duration    => _audio.duration;
 

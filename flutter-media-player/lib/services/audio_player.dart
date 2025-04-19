@@ -34,13 +34,14 @@ class AudioPlayer extends ChangeNotifier {
   bool _isPlaying = false;
   double _position = 0.0;
   double _duration = 0.0;
-  bool _completed = false;          // ← new flag
+  bool _completed = false;          // ← existing field
 
+  // ─── Public getters ───────────────────
   String? get currentPath => _currentPath;
   bool get isPlaying   => _isPlaying;
+  bool get completed   => _completed;  // ← NEW getter
   double get position  => _position;
   double get duration  => _duration;
-  bool get completed   => _completed; // ← expose it
 
   Isolate? _playIso;
   ReceivePort? _exitPort;
@@ -67,14 +68,14 @@ class AudioPlayer extends ChangeNotifier {
 
     _currentPath = path;
     _isPlaying   = true;
-    _completed   = false; // ← reset
+    _completed   = false; // reset on new play
     notifyListeners();
 
     final port = ReceivePort();
     _exitPort = port;
     port.listen((_) {
       _isPlaying  = false;
-      _completed  = true;   // ← track ended
+      _completed  = true;   // track ended
       _pollTimer?.cancel();
       notifyListeners();
       port.close();
@@ -112,7 +113,7 @@ class AudioPlayer extends ChangeNotifier {
 
   Future<void> stop() async {
     // manual stop clears out everything
-    _completed = false; // ← clear
+    _completed = false; // clear on stop
     if (_playIso != null) {
       _stopFFI();
       _playIso!.kill(priority: Isolate.immediate);
