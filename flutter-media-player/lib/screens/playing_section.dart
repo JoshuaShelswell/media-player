@@ -1,9 +1,7 @@
-// lib/screens/playing_section.dart
-
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
 
@@ -20,6 +18,7 @@ class PlayingSection extends StatefulWidget {
 class _PlayingSectionState extends State<PlayingSection> {
   final ScrollController _scrollController = ScrollController();
   int? _hoveredIndex;
+  int? _lastScrollIndex; // ← remember last index to avoid re‑scrolling
 
   // height of each tile (including its vertical margin)
   static const double _tileExtent = 56.0;
@@ -29,8 +28,7 @@ class _PlayingSectionState extends State<PlayingSection> {
     super.initState();
     final player = context.read<PlayerModel>();
     player.addListener(_scrollToCurrent);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _scrollToCurrent());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrent());
   }
 
   @override
@@ -54,11 +52,15 @@ class _PlayingSectionState extends State<PlayingSection> {
     final idx = songs.indexOf(current);
     if (idx < 0) return;
 
-    _scrollController.animateTo(
-      idx * _tileExtent,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
+    // only animate when the index actually changes
+    if (_lastScrollIndex != idx) {
+      _scrollController.animateTo(
+        idx * _tileExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      _lastScrollIndex = idx;
+    }
   }
 
   @override
@@ -177,7 +179,6 @@ class _PlayingSectionState extends State<PlayingSection> {
                                 ],
                               ),
                               onTap: () async {
-                                // Avoid using `context` after an await:
                                 final playerModel = context.read<PlayerModel>();
                                 await playerModel.stop();
                                 if (!mounted) return;
