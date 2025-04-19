@@ -4,74 +4,60 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:isolate';
 import 'dart:io';
+
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 
-typedef _CPlay   = Void Function(Pointer<Utf8>);
-typedef _CPause  = Void Function();
+typedef _CPlay = Void Function(Pointer<Utf8>);
+typedef _CPause = Void Function();
 typedef _CResume = Void Function();
-typedef _CStop   = Void Function();
-typedef _CPos    = Float Function();
-typedef _CDur    = Float Function();
+typedef _CStop = Void Function();
+typedef _CPos = Float Function();
+typedef _CDur = Float Function();
 typedef _CSetVol = Void Function(Float);
-typedef _CSeek   = Void Function(Float);
+typedef _CSeek = Void Function(Float);
 
-typedef _PlayFn   = void Function(Pointer<Utf8>);
-typedef _PauseFn  = void Function();
+typedef _PlayFn = void Function(Pointer<Utf8>);
+typedef _PauseFn = void Function();
 typedef _ResumeFn = void Function();
-typedef _StopFn   = void Function();
-typedef _PosFn    = double Function();
-typedef _DurFn    = double Function();
+typedef _StopFn = void Function();
+typedef _PosFn = double Function();
+typedef _DurFn = double Function();
 typedef _SetVolFn = void Function(double);
-typedef _SeekFn   = void Function(double);
+typedef _SeekFn = void Function(double);
 
 class AudioPlayer extends ChangeNotifier {
   AudioPlayer._();
   static final AudioPlayer instance = AudioPlayer._();
 
   String? _currentPath;
-  bool   _isPlaying   = false;
-  double _position    = 0.0;
-  double _duration    = 0.0;
+  bool _isPlaying = false;
+  double _position = 0.0;
+  double _duration = 0.0;
+  bool _completed = false;          // ← new flag
 
   String? get currentPath => _currentPath;
-  bool   get isPlaying   => _isPlaying;
-  double get position    => _position;
-  double get duration    => _duration;
+  bool get isPlaying   => _isPlaying;
+  double get position  => _position;
+  double get duration  => _duration;
+  bool get completed   => _completed; // ← expose it
 
-  Isolate?     _playIso;
+  Isolate? _playIso;
   ReceivePort? _exitPort;
-  Timer?       _pollTimer;
+  Timer? _pollTimer;
 
   static final DynamicLibrary _lib = Platform.isWindows
-      ? DynamicLibrary.open('rust_engine.dll')
-      : DynamicLibrary.process();
+    ? DynamicLibrary.open('rust_engine.dll')
+    : DynamicLibrary.process();
 
-  static final _PlayFn   _playFFI   = _lib
-      .lookup<NativeFunction<_CPlay>>('play_audio_file')
-      .asFunction();
-  static final _PauseFn  _pauseFFI  = _lib
-      .lookup<NativeFunction<_CPause>>('pause_audio_file')
-      .asFunction();
-  static final _ResumeFn _resumeFFI = _lib
-      .lookup<NativeFunction<_CResume>>('resume_audio_file')
-      .asFunction();
-  static final _StopFn   _stopFFI   = _lib
-      .lookup<NativeFunction<_CStop>>('stop_audio')
-      .asFunction();
-  static final _PosFn    _posFFI    = _lib
-      .lookup<NativeFunction<_CPos>>('get_position_seconds')
-      .asFunction();
-  static final _DurFn    _durFFI    = _lib
-      .lookup<NativeFunction<_CDur>>('get_duration_seconds')
-      .asFunction();
-
-  static final _SetVolFn _setVolFFI = _lib
-      .lookup<NativeFunction<_CSetVol>>('set_volume')
-      .asFunction();
-  static final _SeekFn   _seekFFI   = _lib
-      .lookup<NativeFunction<_CSeek>>('seek_audio')
-      .asFunction();
+  static final _PlayFn   _playFFI   = _lib.lookup<NativeFunction<_CPlay>>('play_audio_file').asFunction();
+  static final _PauseFn  _pauseFFI  = _lib.lookup<NativeFunction<_CPause>>('pause_audio_file').asFunction();
+  static final _ResumeFn _resumeFFI = _lib.lookup<NativeFunction<_CResume>>('resume_audio_file').asFunction();
+  static final _StopFn   _stopFFI   = _lib.lookup<NativeFunction<_CStop>>('stop_audio').asFunction();
+  static final _PosFn    _posFFI    = _lib.lookup<NativeFunction<_CPos>>('get_position_seconds').asFunction();
+  static final _DurFn    _durFFI    = _lib.lookup<NativeFunction<_CDur>>('get_duration_seconds').asFunction();
+  static final _SetVolFn _setVolFFI = _lib.lookup<NativeFunction<_CSetVol>>('set_volume').asFunction();
+  static final _SeekFn   _seekFFI   = _lib.lookup<NativeFunction<_CSeek>>('seek_audio').asFunction();
 
   Future<void> play(String path) async {
     // ensure previous playback is fully stopped
@@ -81,18 +67,18 @@ class AudioPlayer extends ChangeNotifier {
 
     _currentPath = path;
     _isPlaying   = true;
+    _completed   = false; // ← reset
     notifyListeners();
 
     final port = ReceivePort();
     _exitPort = port;
     port.listen((_) {
-      _isPlaying = false;
+      _isPlaying  = false;
+      _completed  = true;   // ← track ended
       _pollTimer?.cancel();
       notifyListeners();
       port.close();
-      if (_exitPort == port) {
-        _exitPort = null;
-      }
+      if (_exitPort == port) _exitPort = null;
     });
 
     final ptr = path.toNativeUtf8();
@@ -125,18 +111,17 @@ class AudioPlayer extends ChangeNotifier {
   }
 
   Future<void> stop() async {
+    // manual stop clears out everything
+    _completed = false; // ← clear
     if (_playIso != null) {
       _stopFFI();
       _playIso!.kill(priority: Isolate.immediate);
       _playIso = null;
     }
-
     _pollTimer?.cancel();
     _pollTimer = null;
-
     _exitPort?.close();
     _exitPort = null;
-
     _isPlaying   = false;
     _currentPath = null;
     _position    = 0.0;

@@ -21,6 +21,8 @@ class _PlayerSectionState extends State<PlayerSection> {
   double _volume = 0.75;
   bool _muted = false;
   bool _shuffle = false;
+  bool _repeat = false;
+  bool _wasPlaying = false;
   String? _albumArtPath;
   bool _transitioning = false;
 
@@ -28,16 +30,24 @@ class _PlayerSectionState extends State<PlayerSection> {
   void initState() {
     super.initState();
     _shuffle = false;
+    _repeat = false;
+    // Listen both for track/albumArt changes and playback-state changes:
     context.read<PlayerModel>().addListener(_onTrackChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _onTrackChanged());
+    context.read<PlayerModel>().addListener(_onPlayerState);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _onTrackChanged();
+      _onPlayerState();
+    });
   }
 
   @override
   void dispose() {
     context.read<PlayerModel>().removeListener(_onTrackChanged);
+    context.read<PlayerModel>().removeListener(_onPlayerState);
     super.dispose();
   }
 
+  /// Update album art when track changes
   void _onTrackChanged() {
     final current = context.read<PlayerModel>().currentPath;
     String? found;
@@ -51,6 +61,23 @@ class _PlayerSectionState extends State<PlayerSection> {
       }
     }
     setState(() => _albumArtPath = found);
+  }
+
+  /// Advance or repeat when playback stops after having been playing
+  void _onPlayerState() {
+    final player = context.read<PlayerModel>();
+    // If we were playing, and now are not, it's end-of-track
+    if (_wasPlaying && !player.isPlaying) {
+      if (_repeat) {
+        final cp = player.currentPath;
+        if (cp != null) {
+          player.play(cp);
+        }
+      } else {
+        _nextTrack();
+      }
+    }
+    _wasPlaying = player.isPlaying;
   }
 
   Future<void> _prevTrack() async {
@@ -113,16 +140,8 @@ class _PlayerSectionState extends State<PlayerSection> {
 
   void _rewind10() => context.read<PlayerModel>().seekRelative(-10);
   void _forward10() => context.read<PlayerModel>().seekRelative(10);
-
   void _toggleShuffle() => setState(() => _shuffle = !_shuffle);
-
-  String get _speakerAsset {
-    if (_muted) return 'assets/icons/ph--speaker-x-fill.svg';
-    if (_volume == 0) return 'assets/icons/ph--speaker-slash-fill.svg';
-    if (_volume <= 0.25) return 'assets/icons/ph--speaker-none-fill.svg';
-    if (_volume <= 0.5) return 'assets/icons/ph--speaker-low-fill.svg';
-    return 'assets/icons/ph--speaker-high-fill.svg';
-  }
+  void _toggleRepeat() => setState(() => _repeat = !_repeat);
 
   void _toggleMute() {
     setState(() => _muted = !_muted);
@@ -135,6 +154,14 @@ class _PlayerSectionState extends State<PlayerSection> {
       if (v > 0) _muted = false;
     });
     context.read<PlayerModel>().setVolume(v);
+  }
+
+  String get _speakerAsset {
+    if (_muted) return 'assets/icons/ph--speaker-x-fill.svg';
+    if (_volume == 0) return 'assets/icons/ph--speaker-slash-fill.svg';
+    if (_volume <= 0.25) return 'assets/icons/ph--speaker-none-fill.svg';
+    if (_volume <= 0.5) return 'assets/icons/ph--speaker-low-fill.svg';
+    return 'assets/icons/ph--speaker-high-fill.svg';
   }
 
   String _formatTime(double seconds) {
@@ -183,7 +210,7 @@ class _PlayerSectionState extends State<PlayerSection> {
           ),
           const SizedBox(width: 16),
 
-          // Track title (ellipsis truncation)
+          // Track title
           Expanded(
             child: Text(
               titleText,
@@ -221,19 +248,25 @@ class _PlayerSectionState extends State<PlayerSection> {
           Text(_formatTime(player.duration), style: TextStyle(color: brightGreen)),
           const SizedBox(width: 24),
 
-          // Controls...
+          // Playback controls
           IconButton(
-            icon: SvgPicture.asset('assets/icons/ph--skip-back-fill.svg', color: brightGreen, width: 24, height: 24),
+            icon: SvgPicture.asset('assets/icons/ph--skip-back-fill.svg',
+                color: brightGreen, width: 24, height: 24),
             onPressed: _prevTrack,
           ),
           IconButton(
-            icon: SvgPicture.asset('assets/icons/ph--rewind-fill.svg', color: brightGreen, width: 24, height: 24),
+            icon: SvgPicture.asset('assets/icons/ph--rewind-fill.svg',
+                color: brightGreen, width: 24, height: 24),
             onPressed: _rewind10,
           ),
           IconButton(
             icon: SvgPicture.asset(
-              player.isPlaying ? 'assets/icons/ph--pause-circle-bold.svg' : 'assets/icons/ph--play-circle-bold.svg',
-              color: brightGreen, width: 32, height: 32,
+              player.isPlaying
+                  ? 'assets/icons/ph--pause-circle-bold.svg'
+                  : 'assets/icons/ph--play-circle-bold.svg',
+              color: brightGreen,
+              width: 32,
+              height: 32,
             ),
             onPressed: () async {
               if (player.currentPath == null) {
@@ -261,11 +294,13 @@ class _PlayerSectionState extends State<PlayerSection> {
             },
           ),
           IconButton(
-            icon: SvgPicture.asset('assets/icons/ph--fast-forward-fill.svg', color: brightGreen, width: 24, height: 24),
+            icon: SvgPicture.asset('assets/icons/ph--fast-forward-fill.svg',
+                color: brightGreen, width: 24, height: 24),
             onPressed: _forward10,
           ),
           IconButton(
-            icon: SvgPicture.asset('assets/icons/ph--skip-forward-fill.svg', color: brightGreen, width: 24, height: 24),
+            icon: SvgPicture.asset('assets/icons/ph--skip-forward-fill.svg',
+                color: brightGreen, width: 24, height: 24),
             onPressed: _nextTrack,
           ),
 
@@ -274,22 +309,39 @@ class _PlayerSectionState extends State<PlayerSection> {
           // Shuffle toggle
           IconButton(
             icon: SvgPicture.asset(
-              _shuffle ? 'assets/icons/ph--shuffle-bold.svg' : 'assets/icons/ph--shuffle-off-bold.svg',
+              _shuffle
+                  ? 'assets/icons/ph--shuffle-bold.svg'
+                  : 'assets/icons/ph--shuffle-off-bold.svg',
               color: _shuffle ? brightGreen : darkGreen,
-              width: 24, height: 24,
+              width: 24,
+              height: 24,
             ),
             onPressed: _toggleShuffle,
           ),
 
+          // Repeat toggle
+          IconButton(
+            icon: SvgPicture.asset(
+              _repeat
+                  ? 'assets/icons/ph--repeat-bold.svg'
+                  : 'assets/icons/ph--repeat-off-bold.svg',
+              color: _repeat ? brightGreen : darkGreen,
+              width: 24,
+              height: 24,
+            ),
+            onPressed: _toggleRepeat,
+          ),
+
           const SizedBox(width: 24),
 
-          // Mute / Volume
+          // Mute / Volume controls
           Transform.translate(
             offset: const Offset(8, 0),
             child: IconButton(
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints.tightFor(width: 24, height: 24),
-              icon: SvgPicture.asset(_speakerAsset, color: brightGreen, width: 24, height: 24),
+              icon: SvgPicture.asset(_speakerAsset,
+                  color: brightGreen, width: 24, height: 24),
               onPressed: _toggleMute,
             ),
           ),
