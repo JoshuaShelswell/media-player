@@ -31,7 +31,7 @@ const MAX_CHANNELS: usize = 8;
 const MAX_BUFFER_SIZE: usize = 16 * 1024 * 1024; // 16MB maximum buffer size
 
 // Helper function to convert C string to Rust string
-unsafe fn to_string(ptr: *const c_char) -> String {
+unsafe fn cstr_to_string(ptr: *const c_char) -> String {
     if ptr.is_null() {
         return String::new();
     }
@@ -179,7 +179,7 @@ unsafe fn process_audio_frame_safe(
     swr_ctx: *mut ffmpeg::SwrContext,
     channel_count: usize,
     output_sample_rate: u32,
-    file_sample_rate: u32,
+    decoder_sample_rate: u32,
     volume_arc: Arc<Mutex<f32>>,
     ring_buffer: Arc<Mutex<AudioRingBuffer>>,
     needs_data: &Arc<AtomicBool>,
@@ -195,8 +195,8 @@ unsafe fn process_audio_frame_safe(
         return 0;
     }
     
-    // Calculate output samples directly with the correct ratio
-    let ratio = output_sample_rate as f64 / file_sample_rate as f64;
+    // Simple ratio without any special adjustments
+    let ratio = output_sample_rate as f64 / decoder_sample_rate as f64;
     let output_samples_calc = (nb_samples as f64 * ratio).ceil() as i32;
     
     // Fix for av_samples_get_buffer_size function call
@@ -294,7 +294,7 @@ pub fn play_audio_file(
     playback_position: Arc<Mutex<PlaybackPosition>>,
     volume_arc: Arc<Mutex<f32>>,
 ) -> Result<()> {
-    info!("Attempting to play file: {}", path);
+    println!("Attempting to play file: {}", path);
     
     // Initialize FFmpeg
     initialize_ffmpeg()?;
@@ -318,11 +318,11 @@ pub fn play_audio_file(
     // Variables for metadata
     let mut track_duration_secs = 300.0; // Default
     let mut channel_count = 2; // Default
-    let mut sample_rate = 44100; // Default
+    let mut container_sample_rate = 44100; // Initially get container's reported rate
+    let mut decoder_sample_rate = 44100; // Will be updated from codec context
 
     // Track completion flag for completion detection
     let track_completed_flag = Arc::new(AtomicBool::new(false));
-
     unsafe {
         // Create a C-string from the path
         let c_path = match CString::new(path) {
@@ -362,7 +362,7 @@ pub fn play_audio_file(
         if ret < 0 || format_ctx.is_null() {
             let error_buf = [0i8; 1024];
             ffmpeg::av_strerror(ret, error_buf.as_ptr() as *mut i8, 1024);
-            let error_msg = to_string(error_buf.as_ptr());
+            let error_msg = cstr_to_string(error_buf.as_ptr());
             error!("Could not open input file: {} ({})", error_msg, ret);
             return Err(anyhow!("Could not open input file: {}", error_msg));
         }
@@ -372,11 +372,15 @@ pub fn play_audio_file(
         if ret < 0 {
             let error_buf = [0i8; 1024];
             ffmpeg::av_strerror(ret, error_buf.as_ptr() as *mut i8, 1024);
-            let error_msg = to_string(error_buf.as_ptr());
+            let error_msg = cstr_to_string(error_buf.as_ptr());
             ffmpeg::avformat_close_input(&mut format_ctx);
             error!("Could not find stream information: {} ({})", error_msg, ret);
             return Err(anyhow!("Could not find stream information: {}", error_msg));
         }
+        
+        // Check file format
+        let format_name = CStr::from_ptr((*format_ctx).iformat.as_ref().unwrap().name).to_string_lossy().to_lowercase();
+        println!("Format: {}", format_name);
         
         // Find audio stream
         let mut audio_stream_idx: i32 = -1;
@@ -388,7 +392,8 @@ pub fn play_audio_file(
             if (*codec_params).codec_type == AVMEDIA_TYPE_AUDIO {
                 audio_stream_idx = i as i32;
                 channel_count = (*codec_params).ch_layout.nb_channels as usize;
-                sample_rate = (*codec_params).sample_rate as u32;
+                container_sample_rate = (*codec_params).sample_rate as u32;
+                println!("Container reports sample rate: {} Hz", container_sample_rate);
                 break;
             }
         }
@@ -405,7 +410,7 @@ pub fn play_audio_file(
             channel_count = safe_channel_count;
         }
         
-        info!("Found audio stream: {} channels, {} Hz", channel_count, sample_rate);
+        println!("Found audio stream: {} channels", channel_count);
         
         // Get the stream for codec info
         let stream = *(*format_ctx).streams.offset(audio_stream_idx as isize);
@@ -419,7 +424,9 @@ pub fn play_audio_file(
             return Err(anyhow!("Unsupported codec"));
         }
         
-        info!("Using codec: {}", CStr::from_ptr((*codec).name).to_string_lossy());
+        // Check codec name for informational purposes
+        let codec_name = CStr::from_ptr((*codec).name).to_string_lossy().to_lowercase();
+        println!("Using codec: {}", codec_name);
         
         // Create codec context
         let codec_ctx = ffmpeg::avcodec_alloc_context3(codec);
@@ -440,12 +447,6 @@ pub fn play_audio_file(
         // Force safe channel count in codec context
         (*codec_ctx).ch_layout.nb_channels = safe_channel_count as c_int;
         
-        // Log codec parameters for debugging
-        info!("Codec parameters: sample_fmt={:?}, sample_rate={}, channels={}", 
-            (*codec_ctx).sample_fmt,
-            (*codec_ctx).sample_rate,
-            (*codec_ctx).ch_layout.nb_channels);
-        
         // Open codec
         if ffmpeg::avcodec_open2(codec_ctx, codec, std::ptr::null_mut()) < 0 {
             error!("Could not open codec");
@@ -454,27 +455,31 @@ pub fn play_audio_file(
             return Err(anyhow!("Could not open codec"));
         }
         
+        // Get the ACTUAL decoder sample rate after opening the codec
+        decoder_sample_rate = (*codec_ctx).sample_rate as u32;
+        println!("Decoder sample rate: {} Hz", decoder_sample_rate);
+        
         // Calculate duration from format context
         if (*format_ctx).duration > 0 {
             track_duration_secs = (*format_ctx).duration as f64 / ffmpeg::AV_TIME_BASE as f64;
         }
         
         let track_duration = Duration::from_secs_f64(track_duration_secs);
-        info!("Track duration: {:?}", track_duration);
+        println!("Track duration: {:?}", track_duration);
         
         // Update player state with duration
         if let Ok(mut state) = state_arc.lock() {
             state.duration = Some(track_duration);
         }
         
-        // Set up audio output with cpal
-        info!("Setting up audio output with CPAL...");
+        // Set up audio output with CPAL
+        println!("Setting up audio output with CPAL...");
         let host = cpal::default_host();
-        info!("Audio host: {}", host.id().name());
+        println!("Audio host: {}", host.id().name());
         
         let device = match host.default_output_device() {
             Some(device) => {
-                info!("Using output device: {}", device.name().unwrap_or_else(|_| String::from("Unknown")));
+                println!("Using output device: {}", device.name().unwrap_or_else(|_| String::from("Unknown")));
                 device
             },
             None => {
@@ -483,75 +488,52 @@ pub fn play_audio_file(
             }
         };
     
-        let mut config_range = device
+        // Find the closest sample rate to the decoder's actual output rate
+        let mut candidates = device
             .supported_output_configs()
             .map_err(|e| {
                 error!("Failed to get device configs: {}", e);
                 anyhow!("Failed to get device configs: {}", e)
             })?
             .filter(|c| c.channels() >= channel_count as u16)
+            .map(|c| {
+                let min = c.min_sample_rate().0;
+                let max = c.max_sample_rate().0;
+                // Clamp our decoder rate into this config's supported range
+                let rate = decoder_sample_rate.clamp(min, max);
+                let diff = (rate as i32 - decoder_sample_rate as i32).abs();
+                (c, rate, diff)
+            })
             .collect::<Vec<_>>();
-        
-        if config_range.is_empty() {
+            
+        // Choose the one with smallest difference
+        if candidates.is_empty() {
             error!("No suitable output config found for device (needed {} channels)", channel_count);
             return Err(anyhow!("No suitable output config found for device"));
         }
         
-        config_range.sort_by_key(|c| c.min_sample_rate().0);
-        let desired_sample_rates = [sample_rate, 48000, 44100, 96000, 192000];
-        let mut selected_config = None;
-    
-        // Try to find a config that supports our desired sample rates
-        for &rate in &desired_sample_rates {
-            for c in &config_range {
-                if rate >= c.min_sample_rate().0 && rate <= c.max_sample_rate().0 {
-                    selected_config = Some(c.with_sample_rate(cpal::SampleRate(rate)));
-                    info!("Selected output config: {} channels, {} Hz", 
-                          c.channels(), rate);
-                    break;
-                }
-            }
-            if selected_config.is_some() {
-                break;
-            }
-        }
-    
-        let device_config = selected_config.unwrap_or_else(|| {
-            let config = &config_range[0];
-            
-            // Choose a safe sample rate close to the original
-            let mut target_rate = sample_rate;
-            
-            // If the file rate is extremely low or high, use a standard rate instead
-            if sample_rate < 8000 || sample_rate > 192000 {
-                target_rate = 44100; // Use a standard rate
-                warn!("File has unusual sample rate ({}Hz). Using standard 44.1kHz output instead.", 
-                     sample_rate);
-            }
-            
-            let sample_rate = if target_rate <= config.min_sample_rate().0 {
-                config.min_sample_rate().0
-            } else if target_rate >= config.max_sample_rate().0 {
-                config.max_sample_rate().0
-            } else {
-                target_rate
-            };
-            
-            info!("Using output sample rate: {} Hz", sample_rate);
-            config.clone().with_sample_rate(cpal::SampleRate(sample_rate))
-        });
+        candidates.sort_by_key(|(_, _, diff)| *diff);
+        let (best_cfg, best_rate, _) = candidates[0].clone();
+        let device_config = best_cfg.with_sample_rate(cpal::SampleRate(best_rate));
+        println!("Selected output sample rate: {} Hz (closest to decoder's {} Hz)", best_rate, decoder_sample_rate);
         
         let config = device_config.config();
         let output_sample_rate = config.sample_rate.0;
-        info!("Output config: {} channels, {} Hz", config.channels, output_sample_rate);
+        
+        // NEW: Capture both input and output channel counts
+        let output_channels = config.channels as usize;
+        let input_channels = channel_count; // what FFmpeg actually decoded
+        
+        println!("Final output config: {} channels, {} Hz", output_channels, output_sample_rate);
+        println!("Resampling ratio: {:.4}", output_sample_rate as f64 / decoder_sample_rate as f64);
     
         // Calculate total samples based on duration
-        let total_samples = (track_duration_secs * sample_rate as f64) as u64 * channel_count as u64;
+        let total_samples = (track_duration_secs * decoder_sample_rate as f64) as u64 * channel_count as u64;
         
         if let Ok(mut pos) = playback_position.lock() {
             pos.set_total_samples(total_samples);
             pos.set_channel_count(channel_count);
-            pos.sample_rate = sample_rate;
+            pos.sample_rate = decoder_sample_rate;
         }
         
         // Set up ring buffer for audio output - make it larger for safety but with limits
@@ -559,7 +541,7 @@ pub fn play_audio_file(
         let max_buffer_frames = MAX_BUFFER_SIZE / (channel_count * std::mem::size_of::<f32>());
         let ring_buffer_size = std::cmp::min(desired_buffer_frames, max_buffer_frames);
         
-        info!("Creating ring buffer with {} samples ({:.2} MB)", 
+        println!("Creating ring buffer with {} samples ({:.2} MB)", 
               ring_buffer_size,
               (ring_buffer_size * std::mem::size_of::<f32>()) as f32 / (1024.0 * 1024.0));
               
@@ -571,29 +553,40 @@ pub fn play_audio_file(
         
         // Debug the buffer
         if let Ok(rb) = ring_buffer.lock() {
-            info!("Ring buffer initialized: capacity={}, available={}",
+            println!("Ring buffer initialized: capacity={}, available={}",
                   rb.capacity(), rb.available());
         }
     
         // Set up audio output stream
-        info!("Building audio output stream...");
+        println!("Building audio output stream...");
         let stream_result = device.build_output_stream(
             &config,
             move |data: &mut [f32], _info| {
                 // This callback is run by the audio system when it needs more samples
                 let start_time = std::time::Instant::now();
                 
-                // Read from our ring buffer with additional safety
+                // MODIFIED: Handle channel mapping between input and output
                 let mut samples_read = 0;
                 if let Ok(mut rb) = ring_buffer_stream.lock() {
-                    // Only read what fits in the output buffer
-                    samples_read = rb.read(data);
-                    
-                    // Explicitly fill the rest with silence to avoid using uninitialized memory
-                    if samples_read < data.len() {
-                        for s in &mut data[samples_read..] {
-                            *s = 0.0;
+                    if input_channels == output_channels {
+                        // Perfect match: read directly
+                        samples_read = rb.read(data);
+                    } else if input_channels == 1 && output_channels == 2 {
+                        // Mono→Stereo: for each input sample, duplicate into L+R
+                        let frames = data.len() / 2;
+                        for frame in 0..frames {
+                            let mut mono = [0.0];
+                            if rb.read(&mut mono) == 0 {
+                                break;
+                            }
+                            let base = frame * 2;
+                            data[base] = mono[0];       // Left channel
+                            data[base + 1] = mono[0];   // Right channel
+                            samples_read += 2;
                         }
+                    } else {
+                        // Fallback for other configurations
+                        samples_read = rb.read(data);
                     }
                     
                     // Signal that we need more data if the buffer is getting low
@@ -606,6 +599,11 @@ pub fn play_audio_file(
                         *s = 0.0;
                     }
                     error!("Failed to lock ring buffer in audio callback");
+                }
+                
+                // Zero-pad anything we didn't fill
+                for s in &mut data[samples_read..] {
+                    *s = 0.0;
                 }
                 
                 // Log details to help diagnose problems
@@ -655,7 +653,7 @@ pub fn play_audio_file(
         };
         
         match audio_stream.play() {
-            Ok(_) => info!("Started audio playback stream"),
+            Ok(_) => println!("Started audio playback stream"),
             Err(e) => {
                 error!("Failed to start audio stream: {}", e);
                 return Err(anyhow!("Failed to start audio: {}", e));
@@ -681,7 +679,7 @@ pub fn play_audio_file(
             return Err(anyhow!("Failed to allocate resampler context"));
         }
         
-        // Fix the swr_alloc_set_opts2 function call with proper handling
+        // Key change: Use decoder_sample_rate, not file_sample_rate or container_sample_rate
         let swr_result = ffmpeg::swr_alloc_set_opts2(
             &mut swr_ctx,
             &out_ch_layout,
@@ -689,7 +687,7 @@ pub fn play_audio_file(
             output_sample_rate as i32,
             &in_ch_layout,
             (*codec_ctx).sample_fmt,
-            sample_rate as i32,
+            decoder_sample_rate as i32,  // Use decoder_sample_rate here
             0,
             std::ptr::null_mut(),
         );
@@ -697,7 +695,7 @@ pub fn play_audio_file(
         if swr_result < 0 {
             let error_buf = [0i8; 1024];
             ffmpeg::av_strerror(swr_result, error_buf.as_ptr() as *mut i8, 1024);
-            let error_msg = to_string(error_buf.as_ptr());
+            let error_msg = cstr_to_string(error_buf.as_ptr());
             error!("Failed to set SwrContext options: {} ({})", error_msg, swr_result);
             ffmpeg::swr_free(&mut swr_ctx);
             ffmpeg::avcodec_free_context(&mut (codec_ctx as *mut _));
@@ -710,13 +708,17 @@ pub fn play_audio_file(
         if swr_init_result < 0 {
             let error_buf = [0i8; 1024];
             ffmpeg::av_strerror(swr_init_result, error_buf.as_ptr() as *mut i8, 1024);
-            let error_msg = to_string(error_buf.as_ptr());
+            let error_msg = cstr_to_string(error_buf.as_ptr());
             error!("Failed to initialize resampler: {} ({})", error_msg, swr_init_result);
             ffmpeg::swr_free(&mut swr_ctx);
             ffmpeg::avcodec_free_context(&mut (codec_ctx as *mut _));
             ffmpeg::avformat_close_input(&mut format_ctx);
             return Err(anyhow!("Failed to initialize resampler: {}", error_msg));
         }
+        
+        // Log resampling details
+        println!("Resampling configured: {} Hz → {} Hz",
+              decoder_sample_rate, output_sample_rate);
         
         // Allocate packet and frame
         let packet = ffmpeg::av_packet_alloc();
@@ -738,7 +740,7 @@ pub fn play_audio_file(
             return Err(anyhow!("Failed to allocate frame"));
         }
         
-        info!("Beginning decode loop for file: {}", path);
+        println!("Beginning decode loop for file: {}", path);
         
         // Main decoding loop
         let mut current_frames: u64 = 0;
@@ -771,7 +773,7 @@ pub fn play_audio_file(
             }
     
             if seek_requested {
-                info!("Seek requested to position {:.4}", target_fraction);
+                println!("Seek requested to position {:.4}", target_fraction);
                 
                 // Calculate seek position in seconds and convert to stream timebase
                 let target_time_seconds = target_fraction * track_duration_secs as f32;
@@ -793,10 +795,10 @@ pub fn play_audio_file(
                 if ret < 0 {
                     let error_buf = [0i8; 1024];
                     ffmpeg::av_strerror(ret, error_buf.as_ptr() as *mut i8, 1024);
-                    let error_msg = to_string(error_buf.as_ptr());
+                    let error_msg = cstr_to_string(error_buf.as_ptr());
                     warn!("Seeking failed: {} ({})", error_msg, ret);
                 } else {
-                    info!("Seek successful");
+                    println!("Seek successful");
                     
                     // Update current position
                     let new_frames = (target_fraction * total_samples as f32 / channel_count as f32) as u64;
@@ -828,7 +830,7 @@ pub fn play_audio_file(
             let ret = ffmpeg::av_read_frame(format_ctx, packet);
             if ret < 0 {
                 if ret == ffmpeg::AVERROR_EOF || ret == ffmpeg::AVERROR(libc::EAGAIN) {
-                    info!("End of file reached");
+                    println!("End of file reached");
                     is_eof = true;
                     
                     // Signal track completion using our track_completed_flag
@@ -842,7 +844,7 @@ pub fn play_audio_file(
                 } else {
                     let error_buf = [0i8; 1024];
                     ffmpeg::av_strerror(ret, error_buf.as_ptr() as *mut i8, 1024);
-                    let error_msg = to_string(error_buf.as_ptr());
+                    let error_msg = cstr_to_string(error_buf.as_ptr());
                     warn!("Error reading frame: {} ({})", error_msg, ret);
                     
                     // Update player state on error
@@ -866,7 +868,7 @@ pub fn play_audio_file(
             if ret < 0 {
                 let error_buf = [0i8; 1024];
                 ffmpeg::av_strerror(ret, error_buf.as_ptr() as *mut i8, 1024);
-                let error_msg = to_string(error_buf.as_ptr());
+                let error_msg = cstr_to_string(error_buf.as_ptr());
                 warn!("Error sending packet to decoder: {} ({})", error_msg, ret);
                 continue;
             }
@@ -888,20 +890,20 @@ pub fn play_audio_file(
                 } else if ret < 0 {
                     let error_buf = [0i8; 1024];
                     ffmpeg::av_strerror(ret, error_buf.as_ptr() as *mut i8, 1024);
-                    let error_msg = to_string(error_buf.as_ptr());
+                    let error_msg = cstr_to_string(error_buf.as_ptr());
                     warn!("Error receiving frame from decoder: {} ({})", error_msg, ret);
                     break;
                 }
                 
                 got_frame = true;
                 
-                // Process the audio frame with enhanced safety
+                // Process the audio frame with enhanced safety - use decoder_sample_rate
                 let frames_decoded = process_audio_frame_safe(
                     frame,
                     swr_ctx, 
                     channel_count,
                     output_sample_rate,
-                    sample_rate,
+                    decoder_sample_rate,  // Use decoder_sample_rate here
                     volume_arc.clone(),
                     ring_buffer.clone(),
                     &needs_data,
@@ -921,7 +923,7 @@ pub fn play_audio_file(
             
             // Periodically log progress
             if last_progress_log.elapsed() >= Duration::from_secs(1) {
-                let cur_seconds = current_frames as f64 / sample_rate as f64;
+                let cur_seconds = current_frames as f64 / decoder_sample_rate as f64;
                 debug!("Playback progress: {:.1}s / {:.1}s ({:.1}%)",
                        cur_seconds,
                        track_duration_secs,
@@ -943,7 +945,7 @@ pub fn play_audio_file(
         }
         
         // Cleanup
-        info!("Playback complete, cleaning up resources");
+        println!("Playback complete, cleaning up resources");
         ffmpeg::av_frame_free(&mut (frame as *mut _));
         ffmpeg::av_packet_free(&mut (packet as *mut _));
         ffmpeg::swr_free(&mut swr_ctx);
