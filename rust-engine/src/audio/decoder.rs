@@ -318,8 +318,8 @@ pub fn play_audio_file(
     // Variables for metadata
     let mut track_duration_secs = 300.0; // Default
     let mut channel_count = 2; // Default
-    let mut container_sample_rate = 44100; // Initially get container's reported rate
-    let mut decoder_sample_rate = 44100; // Will be updated from codec context
+    // Fixed: Remove initial assignments to these variables
+    let decoder_sample_rate; // Will be updated from codec context
 
     // Track completion flag for completion detection
     let track_completed_flag = Arc::new(AtomicBool::new(false));
@@ -392,7 +392,8 @@ pub fn play_audio_file(
             if (*codec_params).codec_type == AVMEDIA_TYPE_AUDIO {
                 audio_stream_idx = i as i32;
                 channel_count = (*codec_params).ch_layout.nb_channels as usize;
-                container_sample_rate = (*codec_params).sample_rate as u32;
+                // Fixed: Make container_sample_rate a local variable
+                let container_sample_rate = (*codec_params).sample_rate as u32;
                 println!("Container reports sample rate: {} Hz", container_sample_rate);
                 break;
             }
